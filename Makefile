@@ -1,12 +1,12 @@
-STUID = ysyx_22040000
-STUNAME = 张三
+STUID = SA24218129
+STUNAME = ysxAurora
 
 # DO NOT modify the following code!!!
 
 TRACER = tracer-ysyx
 GITFLAGS = -q --author='$(TRACER) <tracer@ysyx.org>' --no-verify --allow-empty
 
-YSYX_HOME = $(NEMU_HOME)/..
+YSYX_HOME = $(NEMU_HOME)/../ysyx/ysyx-workbench
 WORK_BRANCH = $(shell git rev-parse --abbrev-ref HEAD)
 WORK_INDEX = $(YSYX_HOME)/.git/index.$(WORK_BRANCH)
 TRACER_BRANCH = $(TRACER)
