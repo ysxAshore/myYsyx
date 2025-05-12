@@ -10,4 +10,5 @@
 !README.md
 !.gitignore
 !init.sh
-/nvboard
+!/nvboard
+!/ics2024

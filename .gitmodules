@@ -1,0 +1,3 @@
+[submodule "ics2024"]
+	path = ics2024
+	url = git@github.com:ysxAshore/ics2024.git
