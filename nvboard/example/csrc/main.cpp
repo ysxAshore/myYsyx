@@ -19,7 +19,13 @@ static void reset(int n) {
 	dut.rst = 0;
 }
 
+#include "verilated_vcd_c.h"
 int main() {
+
+    VerilatedVcdC * tfp = new VerilatedVcdC;
+    Verilated::traceEverOn(true);
+    dut.trace(tfp,0);
+    tfp->open("wave.vcd");
 
 	//绑定引脚
 	nvboard_bind_all_pins(&dut);
@@ -32,5 +38,7 @@ int main() {
 		// 更新NVBoard中各组件的状态和clk信号,重新计算电路状态
 		nvboard_update();
 		single_cycle();
+		tfp->dump(Verilated::time());
+		Verilated::timeInc(1);
 	}
 }

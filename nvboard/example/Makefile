@@ -11,7 +11,7 @@ VERILATOR = verilator
 #	--x-assign: 赋值所有未初始化的X值 "–x-assign fast"会将所有X转换为最有利于性能的值
 #	--x-initial: 初始化未以其他方式初始化的变量的X值 "–x-initial fast"会将所有X初始化为最有利于性能的值
 #	--noassert: 关闭所有的assertions
-VERILATOR_CFLAGS += -MMD --build -cc --exe\
+VERILATOR_CFLAGS += -MMD --build -cc --exe --trace\
 				-O3 --x-assign fast --x-initial fast --noassert
 # make输出目录
 BUILD_DIR = ./build
