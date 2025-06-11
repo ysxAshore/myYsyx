@@ -32,6 +32,7 @@ CSRCS = $(shell find $(abspath ./csrc) -name "*.c" -or -name "*.cc" -or -name "*
 # rules for verilator
 # INC_PATHS存储包含路径(include paths)的目录列表
 # -DTOP_NAME 定义宏TOP_NAME 值为"V$(TOPNAME)"
+INC_PATH += ./csrc/include
 INCFLAGS = $(addprefix -I, $(INC_PATH))
 CXXFLAGS += -g $(INCFLAGS) -DTOP_NAME="\"V$(TOPNAME)\""
 
@@ -45,15 +46,17 @@ $(BIN): $(VSRCS) $(CSRCS) $(NVBOARD_ARCHIVE)
 	@rm -rf $(OBJ_DIR)
 	$(VERILATOR) $(VERILATOR_CFLAGS) \
 		--top-module $(TOPNAME) $^ \
-		$(addprefix -CFLAGS , $(CXXFLAGS)) $(addprefix -LDFLAGS , $(LDFLAGS)) \
+		$(addprefix -CFLAGS , $(CXXFLAGS)) \
+		$(addprefix -LDFLAGS , $(LDFLAGS)) \
 		--Mdir $(OBJ_DIR) -o $(abspath $(BIN))
 
 all: default
 
 run: $(BIN)
-	@$^
+	echo $^ $(ARGS) $(IMG)
+	@$^ $(ARGS) $(IMG)
 
 clean:
-	rm -rf $(BUILD_DIR)
+	rm -rf $(BUILD_DIR) $(BUILD_DIR)/../wave.vcd
 
 .PHONY: default all clean run
