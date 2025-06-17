@@ -1,0 +1,211 @@
+#include <cpu/cpu.h>
+#include <cpu/difftest.h>
+#include <memory/paddr.h>
+
+#define MAX_INST_TO_PRINT 16
+
+TOP_NAME dut;
+CPUState cpu{};
+VerilatedVcdC *tfp;
+uint64_t g_nr_guest_inst = 0;
+
+static const int clk_period = 10; // 时钟周期 10个仿真时间单位
+static int reset_cycles = 5;      // 复位持续周期数
+static vluint64_t sim_time = 0;
+static uint64_t g_timer = 0; // unit: us
+
+extern bool isFinish;
+extern NPCState npc_state;
+
+#ifdef CONFIG_ITRACE
+char logbuf[128];
+char *iringbuf[MAX_INST_TO_PRINT];
+static int header = 0;
+static bool g_print_step = false;
+
+void printIringBuf()
+{
+    int errorIndex = header - 1 < 0 ? MAX_INST_TO_PRINT - 1 : header - 1;
+    for (int i = 0; i < MAX_INST_TO_PRINT; ++i)
+    {
+        if (i == errorIndex)
+        {
+            printf("\033[1;31;40m--> \033[0m");
+            printf("\033[1;31;40m%s\n\033[0m", iringbuf[i]);
+        }
+        else
+            printf("    %s\n", iringbuf[i]);
+    }
+}
+#endif
+
+void checkWatchPoint();
+void printFtrace();
+
+void init_cpu()
+{
+    tfp = new VerilatedVcdC;
+    Verilated::traceEverOn(true);
+    dut.trace(tfp, 0);
+    tfp->open("wave.vcd");
+
+    dut.clk = 0;
+    dut.rst = 0;
+    dut.eval();
+    tfp->dump(sim_time++);
+
+    // 保持rst=1若干周期
+    for (int i = 0; i < reset_cycles * clk_period; ++i)
+    {
+        if (sim_time % (clk_period / 2) == 0)
+            dut.clk = !dut.clk;
+        dut.eval();
+        tfp->dump(sim_time++);
+    }
+
+    // 释放rst
+    dut.rst = 1;
+    dut.eval();
+    tfp->dump(sim_time++);
+}
+
+static void trace_and_difftest()
+{
+#ifdef CONFIG_ITRACE_COND
+    log_write("%s\n", logbuf);
+#endif
+
+#ifdef CONFIG_ITRACE
+    if (g_print_step)
+        puts(logbuf);
+#endif
+
+    IFDEF(CONFIG_DIFFTEST, difftest_step(cpu.pc, dut.dnpc));
+    IFDEF(CONFIG_WATCHPOINT, checkWatchPoint());
+}
+
+static void statistic()
+{
+    IFNDEF(CONFIG_TARGET_AM, setlocale(LC_NUMERIC, ""));
+#define NUMBERIC_FMT MUXDEF(CONFIG_TARGET_AM, "%", "%'") PRIu64
+    Log("host time spent = " NUMBERIC_FMT " us", g_timer);
+    Log("total guest instructions = " NUMBERIC_FMT, g_nr_guest_inst);
+    if (g_timer > 0)
+        Log("simulation frequency = " NUMBERIC_FMT " inst/s", g_nr_guest_inst * 1000000 / g_timer);
+    else
+        Log("Finish running in less than 1 us and can not calculate the simulation frequency");
+}
+
+static void exec_once()
+{
+    word_t current_pc;
+    while (!Verilated::gotFinish())
+    {
+        if (sim_time % (clk_period / 2) == 0)
+        {
+            dut.clk = !dut.clk;
+            if (dut.clk)
+            {
+                current_pc = dut.pc;
+                dut.inst = paddr_read(dut.pc, 4);
+                dut.eval();
+                tfp->dump(sim_time++);
+                break;
+            }
+        }
+        dut.eval();
+        tfp->dump(sim_time++);
+    }
+    if (!isFinish)
+    {
+
+#ifdef CONFIG_ITRACE
+        char *p = logbuf;
+        p += snprintf(p, sizeof(logbuf), FMT_WORD ":", current_pc);
+        int ilen = 4;
+        int i;
+        uint8_t *inst = (uint8_t *)&dut.inst;
+#ifdef CONFIG_ISA_x86
+        for (i = 0; i < ilen; i++)
+        {
+#else
+        for (i = ilen - 1; i >= 0; i--)
+        {
+#endif
+            p += snprintf(p, 4, " %02x", inst[i]);
+        }
+        int ilen_max = MUXDEF(CONFIG_ISA_x86, 8, 4);
+        int space_len = ilen_max - ilen;
+        if (space_len < 0)
+            space_len = 0;
+        space_len = space_len * 3 + 1;
+        memset(p, ' ', space_len);
+        p += space_len;
+
+        void disassemble(char *str, int size, uint64_t pc, uint8_t *code, int nbyte);
+        disassemble(p, logbuf + sizeof(logbuf) - p,
+                    current_pc, (uint8_t *)&dut.inst, ilen);
+        iringbuf[header] = (char *)realloc(iringbuf[header], strlen(logbuf) + 1);
+        strcpy(iringbuf[header], logbuf);
+        ++header;
+        if (header == MAX_INST_TO_PRINT)
+            header = 0;
+#endif
+    }
+}
+
+static void execute(uint64_t n)
+{
+    for (; n > 0; n--)
+    {
+        exec_once();
+        ++g_nr_guest_inst;
+        trace_and_difftest();
+        if (npc_state.state != NPC_RUNNING)
+            break;
+    }
+}
+
+void cpu_exec(uint64_t n)
+{
+    IFDEF(CONFIG_ITRACE, g_print_step = (n < MAX_INST_TO_PRINT));
+
+    switch (npc_state.state)
+    {
+    case NPC_END:
+    case NPC_ABORT:
+    case NPC_QUIT:
+        printf("Program execution has ended. To restart the program, exit NPC and run again.\n");
+        return;
+    default:
+        npc_state.state = NPC_RUNNING;
+    }
+
+    uint64_t timer_start = get_time();
+
+    execute(n);
+
+    uint64_t timer_end = get_time();
+    g_timer += timer_end - timer_start;
+
+    switch (npc_state.state)
+    {
+    case NPC_RUNNING:
+        npc_state.state = NPC_STOP;
+        break;
+
+    case NPC_END:
+    case NPC_ABORT:
+#ifdef CONFIG_ITRACE
+        if (npc_state.halt_ret != 0)
+            printIringBuf();
+#endif
+        IFDEF(CONFIG_FTRACE, printFtrace());
+        Log("npc: %s at pc = " FMT_WORD,
+            (npc_state.state == NPC_ABORT ? ANSI_FMT("ABORT", ANSI_FG_RED) : (npc_state.halt_ret == 0 ? ANSI_FMT("HIT GOOD TRAP", ANSI_FG_GREEN) : ANSI_FMT("HIT BAD TRAP", ANSI_FG_RED))),
+            npc_state.halt_pc);
+        // fall through
+    case NPC_QUIT:
+        statistic();
+    }
+}

@@ -1,16 +1,16 @@
 module ifu(
 	input clk,
 	input rst,
-	output reg [31:0] pc
+	input [31:0] dnpc,
+	output reg [31:0] fectch_pc
 );
-	wire [31:0] snpc;
-	assign snpc = pc + 32'h4;
 
 	always @(posedge clk)begin
 		if(~rst)
-			pc <= 32'h8000_0000;
-		else 
-			pc <= snpc;
+			fectch_pc <= 32'h8000_0000;
+		else begin 
+			fectch_pc <= dnpc;
+		end
 	end
 
 endmodule

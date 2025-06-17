@@ -2,7 +2,7 @@ module exu #(ADDR_WIDTH = 5, DATA_WIDTH = 32)(
 	input clk,
 	input [DATA_WIDTH-1:0] aluSrc1,
 	input [DATA_WIDTH-1:0] aluSrc2,
-	input [9:0] aluOp,
+	input [10:0] aluOp,
 	input d_regW,
 	input [ADDR_WIDTH-1:0] d_regAddr,
 
@@ -28,16 +28,18 @@ module exu #(ADDR_WIDTH = 5, DATA_WIDTH = 32)(
 endmodule
 
 module alu #(ADDR_WIDTH = 5, DATA_WIDTH = 32)(
-	input [9:0] aluOp,
+	input [10:0] aluOp,
 	input [DATA_WIDTH-1:0] aluSrc1,
 	input [DATA_WIDTH-1:0] aluSrc2,
 	output [DATA_WIDTH-1:0] aluResult	
 );
 	wire add_op = aluOp[0];
+	wire lui_op = aluOp[10];
 	
 	wire [DATA_WIDTH-1:0] addResult;
 	assign addResult = aluSrc1 + aluSrc2;
 
-	assign aluResult = {DATA_WIDTH{add_op}} & addResult;
+	assign aluResult = {DATA_WIDTH{add_op}} & addResult |
+					   {DATA_WIDTH{lui_op}} & aluSrc2   ;
 
 endmodule

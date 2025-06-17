@@ -2,19 +2,24 @@ module top(
 	input clk,
 	input rst,
 	input [31:0] inst,
-	output [31:0] pc
+	output [31:0] pc,
+	output [31:0] dnpc
 );
 	localparam DATA_WIDTH = 32;
 	localparam ADDR_WIDTH = 5;
+
+	wire takeDnpc;
+	wire [31:0]id_pc;
 	ifu if_stage(
 		.clk(clk),
 		.rst(rst),
-		.pc(pc)		
+		.fectch_pc(pc),
+		.dnpc(dnpc)
 	);
 
 	wire [DATA_WIDTH-1:0] aluSrc1;
 	wire [DATA_WIDTH-1:0] aluSrc2;
-	wire [9:0] aluOp;
+	wire [10:0] aluOp;
 	wire d_regW;
 	wire [ADDR_WIDTH-1:0] d_regAddr;
 	wire w_regW;
@@ -27,6 +32,7 @@ module top(
 	)id_stage(
 		.clk(clk),
 		.inst(inst),
+		.pc(pc),
 		.aluSrc1(aluSrc1),
 		.aluSrc2(aluSrc2),
 		.aluOp(aluOp),
@@ -34,7 +40,8 @@ module top(
 		.d_regAddr(d_regAddr),
 		.w_regW(w_regW),
 		.w_regAddr(w_regAddr),
-		.w_regData(w_regData)
+		.w_regData(w_regData),
+		.dnpc(dnpc)
 	);
 
 	wire e_regW;
