@@ -4,14 +4,16 @@
 
 bool isFinish = false;
 static int state = 0;
-extern VerilatedVcdC *tfp;
 
 NPCState npc_state = {.state = NPC_STOP};
 
 int is_exit_status_bad()
 {
+#ifdef CONFIG_VCD
+	extern VerilatedVcdC *tfp;
 	tfp->close();
 	delete tfp;
+#endif
 
 	int good = (npc_state.state == NPC_END && npc_state.halt_ret == 0) ||
 			   (npc_state.state == NPC_QUIT);

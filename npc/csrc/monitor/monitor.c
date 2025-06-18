@@ -9,6 +9,7 @@ static int port = 1234;
 static uint32_t *img = NULL;
 
 void init_log(const char *log_file);
+void sdb_set_batch_mode();
 void init_cpu();
 void init_rand();
 void init_sdb();
@@ -61,6 +62,7 @@ static long load_img()
 static int parse_args(int argc, char *argv[])
 {
   const struct option table[] = {
+      {"batch", no_argument, NULL, 'b'},
       {"log", required_argument, NULL, 'l'},
       {"elf", required_argument, NULL, 'e'},
       {"diff", required_argument, NULL, 'd'},
@@ -69,10 +71,13 @@ static int parse_args(int argc, char *argv[])
   };
   int o;
   // 保留一个-将非选项参数作为长选项处理 返回1
-  while ((o = getopt_long(argc, argv, "-l:e:d:p:", table, NULL)) != -1)
+  while ((o = getopt_long(argc, argv, "-bl:e:d:p:", table, NULL)) != -1)
   {
     switch (o)
     {
+    case 'b':
+      sdb_set_batch_mode();
+      break;
     case 'l':
       log_file = optarg;
       break;

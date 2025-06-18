@@ -33,12 +33,10 @@ void init_disasm()
 
     cs_err (*cs_open_dl)(cs_arch arch, cs_mode mode, csh *handle) = NULL;
     cs_open_dl = (cs_err (*)(cs_arch, cs_mode, csh *))dlsym(dl_handle, "cs_open");
-    printf("%d\n", __LINE__);
 
     assert(cs_open_dl);
 
     cs_disasm_dl = (size_t (*)(csh, const uint8_t *, size_t, uint64_t, size_t, cs_insn **))dlsym(dl_handle, "cs_disasm");
-    printf("%d\n", __LINE__);
 
     assert(cs_disasm_dl);
 

@@ -1,7 +1,10 @@
+#include <cpu/cpu.h>
 #include <memory/host.h>
 #include <memory/paddr.h>
+#include <verilated_vcd_c.h>
 
 static uint8_t pmem[CONFIG_MSIZE] PG_ALIGN = {};
+extern CPUState cpu;
 
 uint8_t *guest_to_host(paddr_t paddr) { return pmem + paddr - CONFIG_MBASE; }
 paddr_t host_to_guest(uint8_t *haddr) { return haddr - pmem + CONFIG_MBASE; }
@@ -53,4 +56,27 @@ void paddr_write(paddr_t addr, int len, word_t data)
   }
   // IFDEF(CONFIG_DEVICE, mmio_write(addr, len, data); return);
   out_of_bound(addr);
+}
+
+extern "C" svBitVecVal mem_read(const svLogicVecVal *raddr)
+{
+  return paddr_read(raddr->aval, 4);
+}
+
+extern "C" void mem_write(const svLogicVecVal *addr, const svLogicVecVal *data, char mask)
+{
+  switch (mask)
+  {
+  case 1:
+    paddr_write(addr->aval, 1, data->aval);
+    break;
+  case 3:
+    paddr_write(addr->aval, 2, data->aval);
+    break;
+  case 15:
+    paddr_write(addr->aval, 4, data->aval);
+    break;
+  default:
+    break;
+  }
 }

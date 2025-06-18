@@ -6,7 +6,9 @@
 
 TOP_NAME dut;
 CPUState cpu{};
+#ifdef CONFIG_VCD
 VerilatedVcdC *tfp;
+#endif
 uint64_t g_nr_guest_inst = 0;
 
 static const int clk_period = 10; // 时钟周期 10个仿真时间单位
@@ -44,15 +46,20 @@ void printFtrace();
 
 void init_cpu()
 {
+#ifdef CONFIG_VCD
     tfp = new VerilatedVcdC;
     Verilated::traceEverOn(true);
     dut.trace(tfp, 0);
     tfp->open("wave.vcd");
+#endif
 
     dut.clk = 0;
     dut.rst = 0;
     dut.eval();
-    tfp->dump(sim_time++);
+#ifdef CONFIG_VCD
+    if (sim_time >= CONFIG_VCD_START && sim_time <= CONFIG_VCD_END)
+        tfp->dump(sim_time++);
+#endif
 
     // 保持rst=1若干周期
     for (int i = 0; i < reset_cycles * clk_period; ++i)
@@ -60,13 +67,19 @@ void init_cpu()
         if (sim_time % (clk_period / 2) == 0)
             dut.clk = !dut.clk;
         dut.eval();
-        tfp->dump(sim_time++);
+#ifdef CONFIG_VCD
+        if (sim_time >= CONFIG_VCD_START && sim_time <= CONFIG_VCD_END)
+            tfp->dump(sim_time++);
+#endif
     }
 
     // 释放rst
     dut.rst = 1;
     dut.eval();
-    tfp->dump(sim_time++);
+#ifdef CONFIG_VCD
+    if (sim_time >= CONFIG_VCD_START && sim_time <= CONFIG_VCD_END)
+        tfp->dump(sim_time++);
+#endif
 }
 
 static void trace_and_difftest()
@@ -96,9 +109,15 @@ static void statistic()
         Log("Finish running in less than 1 us and can not calculate the simulation frequency");
 }
 
+void assert_fail_msg()
+{
+    extern void isa_reg_display();
+    isa_reg_display();
+    statistic();
+}
+
 static void exec_once()
 {
-    word_t current_pc;
     while (!Verilated::gotFinish())
     {
         if (sim_time % (clk_period / 2) == 0)
@@ -106,25 +125,32 @@ static void exec_once()
             dut.clk = !dut.clk;
             if (dut.clk)
             {
-                current_pc = dut.pc;
                 dut.inst = paddr_read(dut.pc, 4);
                 dut.eval();
-                tfp->dump(sim_time++);
+                cpu.inst = paddr_read(cpu.pc, 4);
+                dut.eval();
+#ifdef CONFIG_VCD
+                if (sim_time >= CONFIG_VCD_START && sim_time <= CONFIG_VCD_END)
+                    tfp->dump(sim_time++);
+#endif
                 break;
             }
         }
         dut.eval();
-        tfp->dump(sim_time++);
+#ifdef CONFIG_VCD
+        if (sim_time >= CONFIG_VCD_START && sim_time <= CONFIG_VCD_END)
+            tfp->dump(sim_time++);
+#endif
     }
     if (!isFinish)
     {
 
 #ifdef CONFIG_ITRACE
         char *p = logbuf;
-        p += snprintf(p, sizeof(logbuf), FMT_WORD ":", current_pc);
+        p += snprintf(p, sizeof(logbuf), FMT_WORD ":", cpu.pc);
         int ilen = 4;
         int i;
-        uint8_t *inst = (uint8_t *)&dut.inst;
+        uint8_t *inst = (uint8_t *)&cpu.inst;
 #ifdef CONFIG_ISA_x86
         for (i = 0; i < ilen; i++)
         {
@@ -144,7 +170,7 @@ static void exec_once()
 
         void disassemble(char *str, int size, uint64_t pc, uint8_t *code, int nbyte);
         disassemble(p, logbuf + sizeof(logbuf) - p,
-                    current_pc, (uint8_t *)&dut.inst, ilen);
+                    cpu.pc, (uint8_t *)&cpu.inst, ilen);
         iringbuf[header] = (char *)realloc(iringbuf[header], strlen(logbuf) + 1);
         strcpy(iringbuf[header], logbuf);
         ++header;
@@ -161,6 +187,10 @@ static void execute(uint64_t n)
         exec_once();
         ++g_nr_guest_inst;
         trace_and_difftest();
+#ifdef CONFIG_VCD
+        if (sim_time % 1000 == 0)
+            tfp->flush();
+#endif
         if (npc_state.state != NPC_RUNNING)
             break;
     }

@@ -39,7 +39,7 @@ VERILATOR = verilator
 #	--x-initial: 初始化未以其他方式初始化的变量的X值 "–x-initial fast"会将所有X初始化为最有利于性能的值
 #	--noassert: 关闭所有的assertions
 ifeq ($(CONFIG_FTRACE),y)
-VERILOG_DEFINES += -D FTRACE
+VERILOG_DEFINES += -DFTRACE
 endif
 VERILATOR_CFLAGS += -MMD --build -cc --exe --trace\
 				-O3 --x-assign fast --x-initial fast --noassert \

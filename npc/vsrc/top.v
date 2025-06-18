@@ -1,7 +1,7 @@
 module top(
 	input clk,
 	input rst,
-	input [31:0] inst,
+	output [31:0] inst,
 	output [31:0] pc,
 	output [31:0] dnpc
 );
@@ -10,10 +10,15 @@ module top(
 
 	wire takeDnpc;
 	wire [31:0]id_pc;
-	ifu if_stage(
+
+	
+	ifu #(
+		.DATA_WIDTH(DATA_WIDTH)
+	)if_stage(
 		.clk(clk),
 		.rst(rst),
 		.fectch_pc(pc),
+		.inst(inst),
 		.dnpc(dnpc)
 	);
 
@@ -25,6 +30,10 @@ module top(
 	wire w_regW;
 	wire [ADDR_WIDTH-1:0] w_regAddr;
 	wire [DATA_WIDTH-1:0] w_regData;
+
+	wire [2:0] load_inst;
+	wire [3:0] store_mask;
+	wire [DATA_WIDTH-1:0] store_data;
 
 	idu #(
 		.ADDR_WIDTH(ADDR_WIDTH),
@@ -41,12 +50,20 @@ module top(
 		.w_regW(w_regW),
 		.w_regAddr(w_regAddr),
 		.w_regData(w_regData),
-		.dnpc(dnpc)
+		.dnpc(dnpc),
+		.load_inst(load_inst),
+		.store_mask(store_mask),
+		.store_data(store_data)
 	);
 
 	wire e_regW;
 	wire [ADDR_WIDTH-1:0] e_regAddr;
 	wire [DATA_WIDTH-1:0] e_regData;
+	
+	wire [2:0] e_load_inst;
+	wire [3:0] e_store_mask;
+	wire [DATA_WIDTH-1:0] e_store_data;
+	
 	exu #(
 		.ADDR_WIDTH(ADDR_WIDTH),
 		.DATA_WIDTH(DATA_WIDTH)
@@ -59,7 +76,13 @@ module top(
 		.d_regAddr(d_regAddr),
 		.e_regW(e_regW),
 		.e_regAddr(e_regAddr),
-		.e_regData(e_regData)
+		.e_regData(e_regData),
+		.load_inst(load_inst),
+		.store_mask(store_mask),
+		.store_data(store_data),
+		.e_load_inst(e_load_inst),
+		.e_store_mask(e_store_mask),
+		.e_store_data(e_store_data)
 	);
 
 	wire m_regW;
@@ -75,7 +98,10 @@ module top(
 		.e_regData(e_regData),
 		.m_regW(m_regW),
 		.m_regAddr(m_regAddr),
-		.m_regData(m_regData)
+		.m_regData(m_regData),
+		.e_load_inst(e_load_inst),
+		.e_store_mask(e_store_mask),
+		.e_store_data(e_store_data)
 	);
 
 	wbu #(
