@@ -18,7 +18,7 @@ module mmu #(ADDR_WIDTH = 5, DATA_WIDTH = 32)(
 	
 	import "DPI-C" function bit[DATA_WIDTH-1:0] mem_read(input logic[31:0] raddr);
 	import "DPI-C" function void mem_write(input logic[31:0] waddr, input logic[31:0] wdata, input byte wmask);
-	always @(*) begin
+	always @(e_load_inst or e_store_data or e_regData or e_store_data or e_store_mask) begin
 		if(e_load_inst != 3'b0) begin
 			load_data = mem_read(e_regData);
 		end else begin

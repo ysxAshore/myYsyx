@@ -7,7 +7,7 @@ module ifu #(parameter  DATA_WIDTH = 32)(
 );
 
 	import "DPI-C" function bit[DATA_WIDTH-1:0] mem_read(input logic[31:0] raddr);
-	always @(*) begin
+	always @(rst or fectch_pc) begin
 		if(rst)
 			inst = mem_read(fectch_pc);
 		else
