@@ -6,6 +6,9 @@
 #define PMEM_LEFT ((paddr_t)CONFIG_MBASE)
 #define PMEM_RIGHT ((paddr_t)CONFIG_MBASE + CONFIG_MSIZE - 1)
 #define RESET_VECTOR (PMEM_LEFT + CONFIG_PC_RESET_OFFSET)
+#define PAGE_SHIFT 12
+#define PAGE_SIZE (1ul << PAGE_SHIFT)
+#define PAGE_MASK (PAGE_SIZE - 1)
 
 uint8_t *guest_to_host(paddr_t paddr);
 paddr_t host_to_guest(uint8_t *haddr);

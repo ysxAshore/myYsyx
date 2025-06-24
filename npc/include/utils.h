@@ -25,7 +25,9 @@ extern NPCState NPC_state;
 
 // ----------- timer -----------
 
+uint64_t get_time_internal();
 uint64_t get_time();
+#define TIMER_HZ 60
 
 //------------ ftrace ----------
 #include <elf.h>

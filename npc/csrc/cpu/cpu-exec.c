@@ -41,6 +41,7 @@ void printIringBuf()
 }
 #endif
 
+void device_update();
 void checkWatchPoint();
 void printFtrace();
 
@@ -193,6 +194,7 @@ static void execute(uint64_t n)
 #endif
         if (npc_state.state != NPC_RUNNING)
             break;
+        IFDEF(CONFIG_DEVICE, device_update());
     }
 }
 

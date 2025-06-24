@@ -61,6 +61,8 @@
 // keep the code if a boolean macro is defined to 0
 #define IFZERO(macro, ...) MUXZERO(macro, __KEEP, __IGNORE)(__VA_ARGS__)
 
+#define MAP(c, f) c(f)
+
 #define PG_ALIGN __attribute((aligned(4096)))
 
 #if !defined(likely)

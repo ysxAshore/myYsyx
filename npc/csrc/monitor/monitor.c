@@ -15,6 +15,9 @@ void init_rand();
 void init_sdb();
 void init_disasm();
 void init_symTable(const char *elf_file);
+#ifdef CONFIG_DEVICE
+void init_device();
+#endif
 #ifdef CONFIG_DIFFTEST
 void init_difftest(char *ref_so_file, long img_size, int port);
 #endif
@@ -123,6 +126,8 @@ void init_monitor(int argc, char *argv[])
   IFDEF(CONFIG_FTRACE, init_symTable(elf_file));
 
   IFDEF(CONFIG_DIFFTEST, init_difftest(ref_so_file, img_size, port));
+
+  IFDEF(CONFIG_DEVICE, init_device());
 
   welcome();
 }
