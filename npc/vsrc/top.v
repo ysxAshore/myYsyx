@@ -40,6 +40,7 @@ module top(
 		.DATA_WIDTH(DATA_WIDTH)
 	)id_stage(
 		.clk(clk),
+		.rst(rst),
 		.inst(inst),
 		.pc(pc),
 		.aluSrc1(aluSrc1),

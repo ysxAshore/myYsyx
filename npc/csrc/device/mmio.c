@@ -36,6 +36,7 @@ void mmio_write(paddr_t addr, int len, word_t data)
     {
     case CONFIG_SERIAL_MMIO:
         putchar((char)data);
+        fflush(stdout); // 让输出立即刷新 不然会很阻塞
         return;
     case CONFIG_VGA_CTL_MMIO + 0x4:
         screen_sync = data;
