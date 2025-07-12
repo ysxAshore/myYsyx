@@ -23,13 +23,12 @@ module idu #(ADDR_WIDTH = 5, DATA_WIDTH = 32)(
 
 	reg [DATA_WIDTH - 1 : 0] inst;
 	reg [DATA_WIDTH - 1 : 0] pc; 
-	reg [DATA_WIDTH - 1 : 0] w_regData;
-	reg [ADDR_WIDTH - 1 : 0] w_regAddr;
-	reg w_regW;
+	wire [DATA_WIDTH - 1 : 0] w_regData = wb_to_id_bus[DATA_WIDTH + ADDR_WIDTH + 1 - 1 : ADDR_WIDTH + 1] & {DATA_WIDTH{wb_to_id_valid & id_to_wb_ready}};
+	wire [ADDR_WIDTH - 1 : 0] w_regAddr = wb_to_id_bus[ADDR_WIDTH + 1 - 1 : 1] & {ADDR_WIDTH{wb_to_id_valid & id_to_wb_ready}};
+	wire w_regW = wb_to_id_bus[0] & wb_to_id_valid & id_to_wb_ready;
 	always @(posedge clk) begin
 		if(~rst) begin
 			id_to_exe_valid <= 1'b0;			
-			id_to_if_valid <= 1'b0;
 		end else if(if_to_id_valid && id_to_if_ready) begin
 			inst <= if_to_id_bus[DATA_WIDTH - 1 : 0];
 			pc <= if_to_id_bus[DATA_WIDTH + DATA_WIDTH - 1 : DATA_WIDTH];
@@ -37,14 +36,14 @@ module idu #(ADDR_WIDTH = 5, DATA_WIDTH = 32)(
 			id_to_if_valid <= 1'b1;
 		end else if(exe_to_id_ready) begin
 			id_to_exe_valid <= 1'b0;
+		end
+	end
+	
+	always @(posedge clk) begin
+		if(~rst) begin
+			id_to_if_valid <= 1'b0;
 		end else if(if_to_id_ready) begin
 			id_to_if_valid <= 1'b0;
-		end
-		
-		if(wb_to_id_valid && id_to_wb_ready) begin
-			w_regData <= wb_to_id_bus[DATA_WIDTH + ADDR_WIDTH + 1 - 1 : ADDR_WIDTH + 1];
-			w_regAddr <= wb_to_id_bus[ADDR_WIDTH + 1 - 1 : 1];
-			w_regW <= wb_to_id_bus[0];
 		end
 	end
 

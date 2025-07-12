@@ -10,7 +10,7 @@ module exu #(ADDR_WIDTH = 5, DATA_WIDTH = 32)(
 	output reg exe_to_mem_valid,
 	input mem_to_exe_ready,
 
-	output reg[DATA_WIDTH - 1 : 0] load_data
+	output [DATA_WIDTH - 1 : 0] load_data
 );
 	reg [31:0] aluSrc1;
 	reg [31:0] aluSrc2;
@@ -52,22 +52,30 @@ module exu #(ADDR_WIDTH = 5, DATA_WIDTH = 32)(
 		.aluResult(aluResult)
 	);
 
-	
-	import "DPI-C" function bit[DATA_WIDTH-1:0] mem_read(input logic[31:0] raddr);
-	import "DPI-C" function void mem_write(input logic[31:0] waddr, input logic[31:0] wdata, input byte wmask);
-	always @(posedge clk) begin
-		if(exe_to_mem_valid) begin
-			if(load_inst != 3'b0) begin
-				load_data <= mem_read(aluResult);
-			end else begin
-				load_data <= {DATA_WIDTH{1'b0}};
-			end
+	LSU_SRAM lsu_sram(
+		.clk(clk),
+		.ren(load_inst != 3'b0),
+		.raddr(aluResult),
+		.rdata(load_data),
+		.wen(store_mask != 4'b0),
+		.wmask(store_mask),
+		.waddr(aluResult),
+		.wdata(store_data)
+	);
 
-			if(store_mask != 4'b0) begin
-				mem_write(aluResult,store_data,{4'b0,store_mask});
-			end
-		end
-	end
+//	always @(posedge clk) begin
+//		if(exe_to_mem_valid) begin
+//			if(load_inst != 3'b0) begin
+//				load_data <= mem_read(aluResult);
+//			end else begin
+//				load_data <= {DATA_WIDTH{1'b0}};
+//			end
+//
+//			if(store_mask != 4'b0) begin
+//				mem_write(aluResult,store_data,{4'b0,store_mask});
+//			end
+//		end
+//	end
 
 	assign exe_to_mem_bus = {
 		d_regW,
@@ -155,4 +163,31 @@ module alu #(ADDR_WIDTH = 5, DATA_WIDTH = 32)(
  	    			  | ({DATA_WIDTH{op_lui       }} & lui_result)
  	    			  | ({DATA_WIDTH{op_sll       }} & sll_result)
  	    			  | ({DATA_WIDTH{op_srl|op_sra}} & sr_result);
+endmodule
+
+module LSU_SRAM #(
+  parameter DATA_WIDTH = 32,
+  parameter ADDR_WIDTH = 32
+)(
+  input clk,
+  input ren,
+  input [ADDR_WIDTH - 1 : 0] raddr,
+  output reg [DATA_WIDTH - 1 : 0] rdata,
+  
+  input wen,
+  input [ADDR_WIDTH - 1 : 0] waddr,
+  input [DATA_WIDTH - 1 : 0] wdata,
+  input [3:0] wmask
+);
+    // 通过 DPI-C 从内存读写内存
+	import "DPI-C" function bit[DATA_WIDTH-1:0] mem_read(input logic[31:0] raddr);
+	import "DPI-C" function void mem_write(input logic[31:0] waddr, input logic[31:0] wdata, input byte wmask);
+  	always @(posedge clk) begin
+    	if(ren) begin //在复位无效后开始取指
+      		rdata <=  mem_read(raddr);
+    	end
+		if(wen) begin
+			mem_write(waddr,wdata,{4'b0,wmask});
+		end
+  	end
 endmodule
