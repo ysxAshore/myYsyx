@@ -62,8 +62,7 @@ module top(
 		.id_to_wb_ready(id_to_wb_ready)
 	);
 
-	wire [DATA_WIDTH + ADDR_WIDTH + 4 - 1 : 0] exe_to_mem_bus;
-	wire [DATA_WIDTH - 1 : 0] load_data;
+	wire [DATA_WIDTH + DATA_WIDTH + ADDR_WIDTH + 4 - 1 : 0] exe_to_mem_bus;
 	wire exe_to_mem_valid;
 	wire mem_to_exe_ready;
 	
@@ -78,8 +77,7 @@ module top(
 		.exe_to_id_ready(exe_to_id_ready),
 		.exe_to_mem_bus(exe_to_mem_bus),
 		.exe_to_mem_valid(exe_to_mem_valid),
-		.mem_to_exe_ready(mem_to_exe_ready),
-		.load_data(load_data)
+		.mem_to_exe_ready(mem_to_exe_ready)
 	);
 
 	wire [DATA_WIDTH + ADDR_WIDTH + 1 - 1 : 0] mem_to_wb_bus;
@@ -96,8 +94,7 @@ module top(
 		.mem_to_exe_ready(mem_to_exe_ready),
 		.mem_to_wb_bus(mem_to_wb_bus),
 		.mem_to_wb_valid(mem_to_wb_valid),
-		.wb_to_mem_ready(wb_to_mem_ready),
-		.load_data(load_data)
+		.wb_to_mem_ready(wb_to_mem_ready)
 	);
 
 	wbu #(

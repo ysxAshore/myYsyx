@@ -18,32 +18,33 @@ module idu #(ADDR_WIDTH = 5, DATA_WIDTH = 32)(
 	input wb_to_id_valid,
 	output id_to_wb_ready
 );
-	assign id_to_if_ready = !id_to_exe_valid || exe_to_id_ready;
+	reg id_valid;
+	assign id_to_if_ready = !id_valid || exe_to_id_ready;
 	assign id_to_wb_ready = 1;
+	assign id_to_if_valid = id_valid;
+	assign id_to_exe_valid = id_valid;
 
 	reg [DATA_WIDTH - 1 : 0] inst;
 	reg [DATA_WIDTH - 1 : 0] pc; 
-	wire [DATA_WIDTH - 1 : 0] w_regData = wb_to_id_bus[DATA_WIDTH + ADDR_WIDTH + 1 - 1 : ADDR_WIDTH + 1] & {DATA_WIDTH{wb_to_id_valid & id_to_wb_ready}};
-	wire [ADDR_WIDTH - 1 : 0] w_regAddr = wb_to_id_bus[ADDR_WIDTH + 1 - 1 : 1] & {ADDR_WIDTH{wb_to_id_valid & id_to_wb_ready}};
-	wire w_regW = wb_to_id_bus[0] & wb_to_id_valid & id_to_wb_ready;
+	wire [DATA_WIDTH - 1 : 0] w_regData;
+	wire [ADDR_WIDTH - 1 : 0] w_regAddr;
+	wire w_regW;
+
+	//wb时立马写 不要再寄存延迟一拍了
+	assign {w_regData,w_regAddr,w_regW} = wb_to_id_bus & {(DATA_WIDTH + ADDR_WIDTH + 1){wb_to_id_valid && id_to_wb_ready}};
+
 	always @(posedge clk) begin
 		if(~rst) begin
-			id_to_exe_valid <= 1'b0;			
-		end else if(if_to_id_valid && id_to_if_ready) begin
-			inst <= if_to_id_bus[DATA_WIDTH - 1 : 0];
-			pc <= if_to_id_bus[DATA_WIDTH + DATA_WIDTH - 1 : DATA_WIDTH];
-			id_to_exe_valid <= 1'b1;
-			id_to_if_valid <= 1'b1;
-		end else if(exe_to_id_ready) begin
-			id_to_exe_valid <= 1'b0;
-		end
-	end
-	
-	always @(posedge clk) begin
-		if(~rst) begin
-			id_to_if_valid <= 1'b0;
-		end else if(if_to_id_ready) begin
-			id_to_if_valid <= 1'b0;
+			id_valid <= 1'b0;
+		end else begin
+			if(if_to_id_valid && id_to_if_ready) begin
+				id_valid <= 1'b1;
+				pc <= if_to_id_bus[DATA_WIDTH + DATA_WIDTH - 1 : DATA_WIDTH];
+				inst <= if_to_id_bus[DATA_WIDTH - 1 : 0];
+			end
+			if(id_to_exe_valid && exe_to_id_ready) begin
+				id_valid <= 1'b0;
+			end
 		end
 	end
 
