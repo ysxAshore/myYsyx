@@ -23,9 +23,7 @@ module ifu #(parameter DATA_WIDTH = 32)(
   wire [31:0] next_pc;
   assign next_pc = id_to_if_bus;
 
-  // 通过 DPI-C 从内存读指令
-  import "DPI-C" function bit [DATA_WIDTH - 1 : 0] mem_read(input logic [31:0] raddr);
-  reg [DATA_WIDTH - 1 : 0] inst;
+  wire [DATA_WIDTH - 1 : 0] inst;
 
   // 接收新的 PC
   wire accept_new_pc = id_to_if_valid && if_to_id_ready;
@@ -46,7 +44,7 @@ module ifu #(parameter DATA_WIDTH = 32)(
 
       // 发出指令
       if (fetch_valid && id_to_if_ready) begin
-        inst <= mem_read(fetch_pc);
+//        inst <= mem_read(fetch_pc);
         if_to_id_valid <= 1'b1;
         fetch_valid <= 1'b0; // 清除旧指令状态
       end else if (if_to_id_valid && ~id_to_if_ready) begin
@@ -59,4 +57,29 @@ module ifu #(parameter DATA_WIDTH = 32)(
   end
   assign if_to_id_bus = {fetch_pc,inst};
 
+  IFU_SRAM ifu_sram(
+    .clk(clk),
+    .rst(rst),
+    .addr(fetch_pc),
+    .data(inst)
+  );
+
+endmodule
+
+module IFU_SRAM #(
+  parameter DATA_WIDTH = 32,
+  parameter ADDR_WIDTH = 32
+)(
+  input clk,
+  input rst,
+  input [ADDR_WIDTH - 1 : 0] addr,
+  output reg [DATA_WIDTH - 1 : 0] data
+);
+  // 通过 DPI-C 从内存读指令
+  import "DPI-C" function bit [DATA_WIDTH - 1 : 0] mem_read(input logic [31:0] raddr);
+  always @(posedge clk) begin
+    if(rst) begin //在复位无效后开始取指
+      data <=  mem_read(addr);
+    end
+  end
 endmodule
