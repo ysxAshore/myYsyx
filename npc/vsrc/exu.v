@@ -263,20 +263,38 @@ module LSU_SRAM #(
   	assign arready = 1'b1; //总是可以接受读请求
 	assign awready = 1'b1; //总是可以接受写请求
 
+	reg [3:0] delay_cnt;
+	reg pending_read;
+
+	wire [3:0] rand_delay;
+	lfsr4 lfsr(.clk(clk), .rst(rst), .rnd(rand_delay));
+
 	// 通过 DPI-C 从内存读
   	import "DPI-C" function bit [DATA_WIDTH - 1 : 0] mem_read(input logic [31:0] raddr);
   	always @(posedge clk) begin
    		if(~rst) begin
       		rvalid <= 1'b0;
-    	end else if(arvalid && arready) begin //在复位无效后开始取指
-      		rdata <= mem_read(araddr);
-      		rvalid <= 1'b1;
-      		rresp <= 2'b0;
-    	end else if(rvalid && rready) begin
-      		rvalid <= 1'b0;
-    	end
-  	end
+			pending_read <= 1'b0;
+		end else begin
 
+    		if(arvalid && arready && ~pending_read) begin //在复位无效后开始取指
+		   		delay_cnt <= delay_cnt % 8;
+		   		pending_read <= 1'b1;
+			end else if(pending_read) begin
+				if(delay_cnt == 4'b0) begin
+      				rdata <= mem_read(araddr);
+      				rvalid <= 1'b1;
+      				rresp <= 2'b0;
+					pending_read <= 1'b0;
+				end else begin
+					delay_cnt <= delay_cnt - 4'b1;
+				end
+			end
+			if(rvalid && rready) begin
+   		   		rvalid <= 1'b0;
+    		end
+  		end
+	end
 	// aw 和 w 通道应该是解耦的 即允许同时发送awaddr和wdata
 	// 因此需要使用reg暂存发来的wdata wstrb awaddr
 	// 当他们都有效时 就可以发送写请求
@@ -285,6 +303,8 @@ module LSU_SRAM #(
 	reg [3 : 0] reg_wstrb;
 	reg aw_regValid;
 	reg w_regValid;
+
+	reg pending_write;
 
 	assign awready = ~aw_regValid;
 	assign wready = ~w_regValid;
@@ -295,6 +315,7 @@ module LSU_SRAM #(
 			bvalid <= 1'b0;
 			aw_regValid <= 1'b0;
 			w_regValid <= 1'b0;
+			pending_write <= 1'b0;
 		end else begin
 			if(awready && awvalid) begin
 				aw_regValid <= 1'b1;
@@ -307,13 +328,22 @@ module LSU_SRAM #(
 				reg_wstrb <= wstrb;
 			end
 
-			if(aw_regValid && w_regValid) begin
-				aw_regValid <= 1'b0;
-				w_regValid <= 1'b0;
-				mem_write(reg_awaddr,reg_wdata,{4'b0,reg_wstrb});
-				bvalid <= 1'b1;
-				bresp <= 2'b0;
-			end 
+			if(aw_regValid && w_regValid && ~pending_write) begin
+				pending_write <= 1'b1;
+				delay_cnt <= rand_delay % 8;
+			end else if(pending_write) begin
+				if(delay_cnt == 4'b0) begin
+					aw_regValid <= 1'b0;
+					w_regValid <= 1'b0;
+					mem_write(reg_awaddr,reg_wdata,{4'b0,reg_wstrb});
+					bvalid <= 1'b1;
+					bresp <= 2'b0;
+
+					pending_write <= 1'b0;
+				end else begin
+					delay_cnt <= delay_cnt - 4'b1;
+				end
+			end
 
 			if(bvalid && bready) begin
 				bvalid <= 1'b0;
