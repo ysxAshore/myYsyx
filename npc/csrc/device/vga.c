@@ -82,13 +82,13 @@ void write_vmem(paddr_t addr, uint32_t data, int len)
     switch (len)
     {
     case 1:
-        *((uint8_t *)(vmem + addr)) = (uint8_t)data;
+        *((uint8_t *)((uintptr_t)vmem + addr)) = (uint8_t)data;
         break;
     case 2:
-        *((uint16_t *)(vmem + addr)) = (uint16_t)data;
+        *((uint16_t *)((uintptr_t)vmem + addr)) = (uint16_t)data;
         break;
     case 4:
-        *((uint32_t *)(vmem + addr)) = (uint32_t)data;
+        *((uint32_t *)((uintptr_t)vmem + addr)) = (uint32_t)data;
         break;
     default:
         break;

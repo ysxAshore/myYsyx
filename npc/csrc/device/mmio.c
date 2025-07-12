@@ -27,7 +27,7 @@ word_t mmio_read(paddr_t addr, int len)
     default:
         break;
     }
-    Assert(false, "Not implemented the " FMT_PADDR "read", addr);
+    Assert(false, "Not implemented the " FMT_PADDR " read", addr);
 }
 
 void mmio_write(paddr_t addr, int len, word_t data)

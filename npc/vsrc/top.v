@@ -8,32 +8,39 @@ module top(
 	localparam DATA_WIDTH = 32;
 	localparam ADDR_WIDTH = 5;
 
-	wire takeDnpc;
-	wire [31:0]id_pc;
+	wire [DATA_WIDTH - 1 : 0] id_to_if_bus;
+	wire id_to_if_valid;
+	wire if_to_id_ready;
+	wire [DATA_WIDTH + DATA_WIDTH - 1 : 0] if_to_id_bus;
+	wire if_to_id_valid;
+	wire id_to_if_ready;
+	wire wb_to_if_done;
 
+	assign dnpc = id_to_if_bus;
+	assign {pc,inst} = if_to_id_bus;
 	
 	ifu #(
 		.DATA_WIDTH(DATA_WIDTH)
 	)if_stage(
 		.clk(clk),
 		.rst(rst),
-		.fectch_pc(pc),
-		.inst(inst),
-		.dnpc(dnpc)
+		.id_to_if_bus(id_to_if_bus),
+		.id_to_if_valid(id_to_if_valid),
+		.if_to_id_ready(if_to_id_ready),
+		.if_to_id_bus(if_to_id_bus),
+		.if_to_id_valid(if_to_id_valid),
+		.id_to_if_ready(id_to_if_ready),
+		.wb_to_if_done(wb_to_if_done)
 	);
 
-	wire [DATA_WIDTH-1:0] aluSrc1;
-	wire [DATA_WIDTH-1:0] aluSrc2;
-	wire [10:0] aluOp;
-	wire d_regW;
-	wire [ADDR_WIDTH-1:0] d_regAddr;
-	wire w_regW;
-	wire [ADDR_WIDTH-1:0] w_regAddr;
-	wire [DATA_WIDTH-1:0] w_regData;
 
-	wire [2:0] load_inst;
-	wire [3:0] store_mask;
-	wire [DATA_WIDTH-1:0] store_data;
+	wire [DATA_WIDTH + DATA_WIDTH + DATA_WIDTH + ADDR_WIDTH + 19 - 1 : 0] id_to_exe_bus;
+	wire id_to_exe_valid;
+	wire exe_to_id_ready;
+
+	wire [DATA_WIDTH + ADDR_WIDTH + 1 - 1 : 0] wb_to_id_bus;
+	wire wb_to_id_valid;
+	wire id_to_wb_ready;
 
 	idu #(
 		.ADDR_WIDTH(ADDR_WIDTH),
@@ -41,80 +48,71 @@ module top(
 	)id_stage(
 		.clk(clk),
 		.rst(rst),
-		.inst(inst),
-		.pc(pc),
-		.aluSrc1(aluSrc1),
-		.aluSrc2(aluSrc2),
-		.aluOp(aluOp),
-		.d_regW(d_regW),
-		.d_regAddr(d_regAddr),
-		.w_regW(w_regW),
-		.w_regAddr(w_regAddr),
-		.w_regData(w_regData),
-		.dnpc(dnpc),
-		.load_inst(load_inst),
-		.store_mask(store_mask),
-		.store_data(store_data)
+		.id_to_if_bus(id_to_if_bus),
+		.id_to_if_valid(id_to_if_valid),
+		.if_to_id_ready(if_to_id_ready),
+		.if_to_id_bus(if_to_id_bus),
+		.if_to_id_valid(if_to_id_valid),
+		.id_to_if_ready(id_to_if_ready),
+		.id_to_exe_bus(id_to_exe_bus),
+		.id_to_exe_valid(id_to_exe_valid),
+		.exe_to_id_ready(exe_to_id_ready),
+		.wb_to_id_bus(wb_to_id_bus),
+		.wb_to_id_valid(wb_to_id_valid),
+		.id_to_wb_ready(id_to_wb_ready)
 	);
 
-	wire e_regW;
-	wire [ADDR_WIDTH-1:0] e_regAddr;
-	wire [DATA_WIDTH-1:0] e_regData;
-	
-	wire [2:0] e_load_inst;
-	wire [3:0] e_store_mask;
-	wire [DATA_WIDTH-1:0] e_store_data;
+	wire [DATA_WIDTH + ADDR_WIDTH + 4 - 1 : 0] exe_to_mem_bus;
+	wire [DATA_WIDTH - 1 : 0] load_data;
+	wire exe_to_mem_valid;
+	wire mem_to_exe_ready;
 	
 	exu #(
 		.ADDR_WIDTH(ADDR_WIDTH),
 		.DATA_WIDTH(DATA_WIDTH)
 	)exe_stage(
 		.clk(clk),
-		.aluSrc1(aluSrc1),
-		.aluSrc2(aluSrc2),
-		.aluOp(aluOp),
-		.d_regW(d_regW),
-		.d_regAddr(d_regAddr),
-		.e_regW(e_regW),
-		.e_regAddr(e_regAddr),
-		.e_regData(e_regData),
-		.load_inst(load_inst),
-		.store_mask(store_mask),
-		.store_data(store_data),
-		.e_load_inst(e_load_inst),
-		.e_store_mask(e_store_mask),
-		.e_store_data(e_store_data)
+		.rst(rst),
+		.id_to_exe_bus(id_to_exe_bus),
+		.id_to_exe_valid(id_to_exe_valid),
+		.exe_to_id_ready(exe_to_id_ready),
+		.exe_to_mem_bus(exe_to_mem_bus),
+		.exe_to_mem_valid(exe_to_mem_valid),
+		.mem_to_exe_ready(mem_to_exe_ready),
+		.load_data(load_data)
 	);
 
-	wire m_regW;
-	wire [ADDR_WIDTH-1:0] m_regAddr;
-	wire [DATA_WIDTH-1:0] m_regData;
+	wire [DATA_WIDTH + ADDR_WIDTH + 1 - 1 : 0] mem_to_wb_bus;
+	wire mem_to_wb_valid;
+	wire wb_to_mem_ready;
 	mmu #(
 		.ADDR_WIDTH(ADDR_WIDTH),
 		.DATA_WIDTH(DATA_WIDTH)
 	)mem_stage(
 		.clk(clk),
-		.e_regW(e_regW),
-		.e_regAddr(e_regAddr),
-		.e_regData(e_regData),
-		.m_regW(m_regW),
-		.m_regAddr(m_regAddr),
-		.m_regData(m_regData),
-		.e_load_inst(e_load_inst),
-		.e_store_mask(e_store_mask),
-		.e_store_data(e_store_data)
+		.rst(rst),
+		.exe_to_mem_bus(exe_to_mem_bus),
+		.exe_to_mem_valid(exe_to_mem_valid),
+		.mem_to_exe_ready(mem_to_exe_ready),
+		.mem_to_wb_bus(mem_to_wb_bus),
+		.mem_to_wb_valid(mem_to_wb_valid),
+		.wb_to_mem_ready(wb_to_mem_ready),
+		.load_data(load_data)
 	);
 
 	wbu #(
 		.ADDR_WIDTH(ADDR_WIDTH),
 		.DATA_WIDTH(DATA_WIDTH)
 	)wb_stage(
-		.m_regW(m_regW),
-		.m_regAddr(m_regAddr),
-		.m_regData(m_regData),
-		.w_regW(w_regW),
-		.w_regAddr(w_regAddr),
-		.w_regData(w_regData)
+		.clk(clk),
+		.rst(rst),
+		.mem_to_wb_bus(mem_to_wb_bus),
+		.mem_to_wb_valid(mem_to_wb_valid),
+		.wb_to_mem_ready(wb_to_mem_ready),
+		.wb_to_id_bus(wb_to_id_bus),
+		.wb_to_id_valid(wb_to_id_valid),
+		.id_to_wb_ready(id_to_wb_ready),
+		.wb_to_if_done(wb_to_if_done)
 	);
 endmodule
 

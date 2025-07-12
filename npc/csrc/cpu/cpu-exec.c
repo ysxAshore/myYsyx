@@ -62,7 +62,7 @@ void init_cpu()
         tfp->dump(sim_time++);
 #endif
 
-    // 保持rst=1若干周期
+    // 保持rst=0若干周期
     for (int i = 0; i < reset_cycles * clk_period; ++i)
     {
         if (sim_time % (clk_period / 2) == 0)
@@ -108,6 +108,9 @@ static void statistic()
         Log("simulation frequency = " NUMBERIC_FMT " inst/s", g_nr_guest_inst * 1000000 / g_timer);
     else
         Log("Finish running in less than 1 us and can not calculate the simulation frequency");
+#ifdef CONFIG_VCD
+    tfp->close();
+#endif
 }
 
 void assert_fail_msg()
@@ -121,64 +124,53 @@ static void exec_once()
 {
     while (!Verilated::gotFinish())
     {
+        paddr_t cur_pc = dut.pc;
         if (sim_time % (clk_period / 2) == 0)
-        {
             dut.clk = !dut.clk;
-            if (dut.clk)
-            {
-                dut.inst = paddr_read(dut.pc, 4);
-                dut.eval();
-                cpu.inst = paddr_read(cpu.pc, 4);
-                dut.eval();
-#ifdef CONFIG_VCD
-                if (sim_time >= CONFIG_VCD_START && sim_time <= CONFIG_VCD_END)
-                    tfp->dump(sim_time++);
-#endif
-                break;
-            }
-        }
         dut.eval();
 #ifdef CONFIG_VCD
         if (sim_time >= CONFIG_VCD_START && sim_time <= CONFIG_VCD_END)
             tfp->dump(sim_time++);
 #endif
+        if (dut.pc != cur_pc)
+        {
+            cpu.inst = dut.inst;
+            break;
+        }
     }
-    if (!isFinish)
-    {
 
 #ifdef CONFIG_ITRACE
-        char *p = logbuf;
-        p += snprintf(p, sizeof(logbuf), FMT_WORD ":", cpu.pc);
-        int ilen = 4;
-        int i;
-        uint8_t *inst = (uint8_t *)&cpu.inst;
+    char *p = logbuf;
+    p += snprintf(p, sizeof(logbuf), FMT_WORD ":", cpu.pc);
+    int ilen = 4;
+    int i;
+    uint8_t *inst = (uint8_t *)&cpu.inst;
 #ifdef CONFIG_ISA_x86
-        for (i = 0; i < ilen; i++)
-        {
+    for (i = 0; i < ilen; i++)
+    {
 #else
-        for (i = ilen - 1; i >= 0; i--)
-        {
+    for (i = ilen - 1; i >= 0; i--)
+    {
 #endif
-            p += snprintf(p, 4, " %02x", inst[i]);
-        }
-        int ilen_max = MUXDEF(CONFIG_ISA_x86, 8, 4);
-        int space_len = ilen_max - ilen;
-        if (space_len < 0)
-            space_len = 0;
-        space_len = space_len * 3 + 1;
-        memset(p, ' ', space_len);
-        p += space_len;
-
-        void disassemble(char *str, int size, uint64_t pc, uint8_t *code, int nbyte);
-        disassemble(p, logbuf + sizeof(logbuf) - p,
-                    cpu.pc, (uint8_t *)&cpu.inst, ilen);
-        iringbuf[header] = (char *)realloc(iringbuf[header], strlen(logbuf) + 1);
-        strcpy(iringbuf[header], logbuf);
-        ++header;
-        if (header == MAX_INST_TO_PRINT)
-            header = 0;
-#endif
+        p += snprintf(p, 4, " %02x", inst[i]);
     }
+    int ilen_max = MUXDEF(CONFIG_ISA_x86, 8, 4);
+    int space_len = ilen_max - ilen;
+    if (space_len < 0)
+        space_len = 0;
+    space_len = space_len * 3 + 1;
+    memset(p, ' ', space_len);
+    p += space_len;
+
+    void disassemble(char *str, int size, uint64_t pc, uint8_t *code, int nbyte);
+    disassemble(p, logbuf + sizeof(logbuf) - p,
+                cpu.pc, (uint8_t *)&cpu.inst, ilen);
+    iringbuf[header] = (char *)realloc(iringbuf[header], strlen(logbuf) + 1);
+    strcpy(iringbuf[header], logbuf);
+    ++header;
+    if (header == MAX_INST_TO_PRINT)
+        header = 0;
+#endif
 }
 
 static void execute(uint64_t n)

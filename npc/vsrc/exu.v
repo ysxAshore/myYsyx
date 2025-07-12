@@ -1,22 +1,45 @@
 module exu #(ADDR_WIDTH = 5, DATA_WIDTH = 32)(
 	input clk,
-	input [DATA_WIDTH-1:0] aluSrc1,
-	input [DATA_WIDTH-1:0] aluSrc2,
-	input [10:0] aluOp,
-	input d_regW,
-	input [ADDR_WIDTH-1:0] d_regAddr,
-	input [2:0] load_inst,
-	input [3:0] store_mask,
-	input [DATA_WIDTH-1:0] store_data,
+	input rst,
 
-	output e_regW,
-	output [ADDR_WIDTH-1:0]e_regAddr,
-	output [DATA_WIDTH-1:0]e_regData,
+	input [DATA_WIDTH + DATA_WIDTH + DATA_WIDTH + ADDR_WIDTH + 19 - 1 : 0] id_to_exe_bus,
+	input id_to_exe_valid,
+	output exe_to_id_ready,
 
-	output [2:0] e_load_inst,
-	output [3:0] e_store_mask,
-	output [DATA_WIDTH-1:0] e_store_data
+	output [DATA_WIDTH + ADDR_WIDTH + 4 - 1 : 0] exe_to_mem_bus,
+	output reg exe_to_mem_valid,
+	input mem_to_exe_ready,
+
+	output reg[DATA_WIDTH - 1 : 0] load_data
 );
+	reg [31:0] aluSrc1;
+	reg [31:0] aluSrc2;
+	reg [10:0] aluOp;
+	reg d_regW;
+	reg [ADDR_WIDTH-1:0] d_regAddr;
+	reg [2:0] load_inst;
+	reg [3:0] store_mask;
+	reg [DATA_WIDTH-1:0] store_data;
+
+	assign exe_to_id_ready = ~exe_to_mem_valid || mem_to_exe_ready;
+	always @(posedge clk) begin
+		if(~rst) begin
+			exe_to_mem_valid <= 1'b0;
+		end else if (id_to_exe_valid && exe_to_id_ready) begin
+			aluSrc1 <= id_to_exe_bus[DATA_WIDTH + ADDR_WIDTH + DATA_WIDTH + DATA_WIDTH + 4 + 3 + 12 - 1: DATA_WIDTH + ADDR_WIDTH + DATA_WIDTH + 4 + 3 + 12];
+			aluSrc2 <= id_to_exe_bus[DATA_WIDTH + ADDR_WIDTH + DATA_WIDTH + 4 + 3 + 12 - 1 : DATA_WIDTH + ADDR_WIDTH + 4 + 3 + 12];
+			aluOp <= id_to_exe_bus[DATA_WIDTH + ADDR_WIDTH + 4 + 3 + 12 - 1 : DATA_WIDTH + ADDR_WIDTH + 4 + 3 + 1];
+			d_regW <= id_to_exe_bus[DATA_WIDTH + ADDR_WIDTH + 4 + 3 : DATA_WIDTH + ADDR_WIDTH + 4 + 3];
+			d_regAddr <= id_to_exe_bus[DATA_WIDTH + ADDR_WIDTH + 4 + 3 - 1 : DATA_WIDTH + 4 + 3];
+			load_inst <= id_to_exe_bus[DATA_WIDTH + 4 + 3 - 1 : DATA_WIDTH + 4];
+			store_mask <= id_to_exe_bus[DATA_WIDTH + 4 - 1 : DATA_WIDTH];
+			store_data <= id_to_exe_bus[DATA_WIDTH - 1 : 0];
+
+			exe_to_mem_valid <= 1'b1;
+		end else if (mem_to_exe_ready) begin
+			exe_to_mem_valid <= 1'b0;
+		end
+	end
 	
 	wire [DATA_WIDTH-1:0] aluResult;
 	alu #(
@@ -28,13 +51,30 @@ module exu #(ADDR_WIDTH = 5, DATA_WIDTH = 32)(
 		.aluSrc2(aluSrc2),
 		.aluResult(aluResult)
 	);
-	assign e_regW = d_regW;
-	assign e_regAddr = d_regAddr;
-	assign e_regData = aluResult;
 
-	assign e_load_inst = load_inst;
-	assign e_store_mask = store_mask;
-	assign e_store_data = store_data;
+	
+	import "DPI-C" function bit[DATA_WIDTH-1:0] mem_read(input logic[31:0] raddr);
+	import "DPI-C" function void mem_write(input logic[31:0] waddr, input logic[31:0] wdata, input byte wmask);
+	always @(posedge clk) begin
+		if(exe_to_mem_valid) begin
+			if(load_inst != 3'b0) begin
+				load_data <= mem_read(aluResult);
+			end else begin
+				load_data <= {DATA_WIDTH{1'b0}};
+			end
+
+			if(store_mask != 4'b0) begin
+				mem_write(aluResult,store_data,{4'b0,store_mask});
+			end
+		end
+	end
+
+	assign exe_to_mem_bus = {
+		d_regW,
+		d_regAddr,
+		aluResult,
+		load_inst
+	};
 endmodule
 
 module alu #(ADDR_WIDTH = 5, DATA_WIDTH = 32)(

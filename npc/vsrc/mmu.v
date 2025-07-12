@@ -1,40 +1,53 @@
 module mmu #(ADDR_WIDTH = 5, DATA_WIDTH = 32)(    
 	input clk,
-	input e_regW,
-    input [ADDR_WIDTH-1:0]e_regAddr,
-    input [DATA_WIDTH-1:0]e_regData,
-	input [2:0] e_load_inst,
-	input [3:0] e_store_mask,
-	input [DATA_WIDTH-1:0] e_store_data,
+	input rst,
+
+	input [DATA_WIDTH + ADDR_WIDTH + 4 - 1 : 0] exe_to_mem_bus,
+	input exe_to_mem_valid,
+	output mem_to_exe_ready,
+
 	
-	output m_regW,
-    output [ADDR_WIDTH-1:0]m_regAddr,
-    output [DATA_WIDTH-1:0]m_regData
+	output [DATA_WIDTH + ADDR_WIDTH + 1 - 1 : 0] mem_to_wb_bus,
+	output reg mem_to_wb_valid,
+	input wb_to_mem_ready,
+
+	input [DATA_WIDTH - 1 : 0] load_data
 );
-	assign m_regW = e_regW;
-	assign m_regAddr = e_regAddr;
+	reg	e_regW;
+	reg [ADDR_WIDTH-1:0]e_regAddr;
+	reg [DATA_WIDTH-1:0]e_regData;
+	reg	[2:0] e_load_inst;
 
-	reg[DATA_WIDTH-1:0] load_data;
-	
-	import "DPI-C" function bit[DATA_WIDTH-1:0] mem_read(input logic[31:0] raddr);
-	import "DPI-C" function void mem_write(input logic[31:0] waddr, input logic[31:0] wdata, input byte wmask);
-	always @(e_load_inst or e_store_data or e_regData or e_store_data or e_store_mask) begin
-		if(e_load_inst != 3'b0) begin
-			load_data = mem_read(e_regData);
-		end else begin
-			load_data = {DATA_WIDTH{1'b0}};
-		end
+	assign mem_to_exe_ready = ~mem_to_wb_valid || wb_to_mem_ready;
 
-		if(e_store_mask != 4'b0) begin
-			mem_write(e_regData,e_store_data,{4'b0,e_store_mask});
+	always @(posedge clk) begin
+		if(~rst) begin
+			mem_to_wb_valid <= 1'b0;
+		end else if(exe_to_mem_valid && mem_to_exe_ready) begin
+			e_regW <= exe_to_mem_bus[DATA_WIDTH + ADDR_WIDTH + 3 : DATA_WIDTH + ADDR_WIDTH + 3];
+			e_regAddr <= exe_to_mem_bus[DATA_WIDTH + ADDR_WIDTH + 3 - 1 : DATA_WIDTH + 3];
+			e_regData <= exe_to_mem_bus[DATA_WIDTH + 3 - 1 : 3];
+			e_load_inst <= exe_to_mem_bus[2 : 0];
+
+			mem_to_wb_valid <= 1'b1;
+		end else if(wb_to_mem_ready) begin
+			mem_to_wb_valid <= 1'b0;
 		end
 	end
+	
 
-	assign m_regData = {DATA_WIDTH{e_load_inst == 3'h0}} & e_regData |
+
+	wire [DATA_WIDTH - 1 : 0] m_regData = {DATA_WIDTH{e_load_inst == 3'h0}} & e_regData |
 					   {DATA_WIDTH{e_load_inst == 3'h1}} & {{(DATA_WIDTH-8){load_data[7]}},load_data[7:0]} |
 					   {DATA_WIDTH{e_load_inst == 3'h2}} & {{(DATA_WIDTH-16){load_data[15]}},load_data[15:0]} |
 					   {DATA_WIDTH{e_load_inst == 3'h3}} & {{(DATA_WIDTH-32){load_data[31]}},load_data[31:0]} |
 					   {DATA_WIDTH{e_load_inst == 3'h4}} & {{(DATA_WIDTH-8){1'b0}},load_data[7:0]} |
 					   {DATA_WIDTH{e_load_inst == 3'h5}} & {{(DATA_WIDTH-16){1'b0}},load_data[15:0]};
+
+	assign mem_to_wb_bus = {
+		e_regW,
+		e_regAddr,
+		m_regData
+	};
 
 endmodule
