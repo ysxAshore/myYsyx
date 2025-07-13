@@ -22,6 +22,7 @@ extern "C" void recordRegs(const svLogicVecVal dut_regs[])
     for (size_t i = 0; i < NR_GPR; i++)
         cpu.gprs[i] = dut_regs[i].aval;
     cpu.pc = dut.pc;
+    cpu.inst = dut.inst;
 }
 void isa_reg_display()
 {

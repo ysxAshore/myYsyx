@@ -93,7 +93,6 @@ static void trace_and_difftest()
     if (g_print_step)
         puts(logbuf);
 #endif
-
     IFDEF(CONFIG_DIFFTEST, difftest_step(cpu.pc, dut.dnpc));
     IFDEF(CONFIG_WATCHPOINT, checkWatchPoint());
 }
@@ -126,17 +125,17 @@ static void exec_once()
     {
         paddr_t cur_pc = dut.pc;
         if (sim_time % (clk_period / 2) == 0)
+        {
             dut.clk = !dut.clk;
+            dut.eval();
+            if (dut.clk && dut.execute_once) // 上升沿检测
+                break;
+        }
         dut.eval();
 #ifdef CONFIG_VCD
         if (sim_time >= CONFIG_VCD_START && sim_time <= CONFIG_VCD_END)
             tfp->dump(sim_time++);
 #endif
-        if (dut.pc != cur_pc)
-        {
-            cpu.inst = dut.inst;
-            break;
-        }
     }
 
 #ifdef CONFIG_ITRACE

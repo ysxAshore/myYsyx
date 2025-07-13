@@ -272,20 +272,20 @@ module idu #(ADDR_WIDTH = 5, DATA_WIDTH = 32)(
 
 	//DPI-C recongnize the ebreak ,then notice the sim terminate
 	import "DPI-C" function void callEbreak(int retval,logic[31:0] pc);
-	always@(posedge clk)begin //在ebreak上升沿时 pc和regData1都是上个指令的 因此需要在下降沿
-		if(ebreak)
-			callEbreak(regData1,pc);
+	always@(posedge ebreak)begin //在ebreak上升沿时 pc和regData1都是上个指令的 因此需要在下降沿
+		callEbreak(regData1,pc);
 	end
 
 `ifdef FTRACE
 	import "DPI-C" function void insertFtraceNode(int callType,logic[31:0] from_pc,logic[31:0] to_pc);
 	always@(posedge clk)begin
-		if(jal && rd == 0 && immJ == 0 && rs1 == 1) 
+		if(jal && rd == 0 && immJ == 0 && rs1 == 1) begin
 			insertFtraceNode(1,pc,jal_pc);
-		else if(jalr && rd == 0 && immI == 0 && rs1 == 1)
-			insertFtraceNode(1,pc,jalr_pc);
-		else if((jal || jalr) && rd == 1)
+		end else if(jalr && rd == 0 && immI == 0 && rs1 == 1) begin
+			insertFtraceNode(1,pc,jalr_pc);		
+		end else if((jal || jalr) && rd == 1) begin
 			insertFtraceNode(0,pc,{32{jal}} & jal_pc | {32{jalr}} & jalr_pc);
+		end
 	end
 `endif
 

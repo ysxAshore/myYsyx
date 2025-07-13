@@ -22,7 +22,7 @@ extern TOP_NAME dut;
 bool isa_difftest_checkregs(CPU_state *ref_r, vaddr_t pc)
 {
     bool sign = true;
-    if (!difftest_check_reg("pc", pc, ref_r->pc, dut.pc))
+    if (!difftest_check_reg("pc", pc, ref_r->pc, dut.dnpc))
         return false;
     for (int i = 0; i < NR_GPR; ++i)
     {
