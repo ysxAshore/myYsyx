@@ -19,6 +19,8 @@ include $(FILELIST_MK)
 # project source
 # 在vsrc目录下找到所有的.v文件
 VSRCS = $(shell find $(abspath ./vsrc) -name "*.v") 
+VSRCS += $(shell find /home/sxyang/Projects/ysyx/ysyxSoC/perip -name "*.v")
+VSRCS += /home/sxyang/Projects/ysyx/ysyxSoC/build/ysyxSoCFull.v
 # 根据filelist_mk找到所有的c文件
 # Filter out directories and files in blacklist to obtain the final set of source files
 DIRS-BLACKLIST-y += $(DIRS-BLACKLIST)
@@ -28,8 +30,9 @@ CSRCS-y += $(shell find -L $(DIRS-y) -name "*.c" | sed 's|^\./||')
 CSRCS = $(filter-out $(CSRCS-BLACKLIST-y),$(CSRCS-y))
 
 # 顶层模块名称
-TOPNAME = top
+TOPNAME = ysyxSoCFull
 INC_PATH ?= 
+VERILATOR_INC_PATH += /home/sxyang/Projects/ysyx/ysyxSoC/perip/uart16550/rtl /home/sxyang/Projects/ysyx/ysyxSoC/perip/spi/rtl
 # verilator路径
 VERILATOR = verilator
 # verilator编译选项
@@ -42,7 +45,11 @@ ifeq ($(CONFIG_FTRACE),y)
 VERILOG_DEFINES += -DFTRACE
 endif
 VERILATOR_CFLAGS += -MMD --build -cc --exe --trace\
-				-O3 --x-assign fast --x-initial fast --noassert \
+				--x-assign fast --x-initial fast -O3 \
+				--noassert --autoflush \
+				--timescale "1ns/1ps" --no-timing \
+				-DVL_TRACE_BUFFER_SIZE=8388608 \
+		       	$(addprefix -I, $(VERILATOR_INC_PATH)) \
 				$(VERILOG_DEFINES)
 # make输出目录
 BUILD_DIR = ./build

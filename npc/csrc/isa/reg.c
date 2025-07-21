@@ -1,5 +1,5 @@
 #include <cpu/cpu.h>
-#include <Vtop__Dpi.h> //DPI-C函数的头文件 在该.h中声明了DPI-C函数
+#include <VysyxSoCFull__Dpi.h> //DPI-C函数的头文件 在该.h中声明了DPI-C函数
 
 // RV32E RV32I Rv64I都是这个顺序
 extern TOP_NAME dut;

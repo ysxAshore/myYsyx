@@ -20,11 +20,17 @@ module ifu #(
   //axi
   output reg arvalid,
   input arready,
+  output [3:0] arid,
+  output [7:0] arlen,
+  output [2:0] arsize,
+  output [1:0] arburst,
   output [ADDR_WIDTH - 1 : 0] araddr,
   output rready,
   input rvalid,
   input [1:0] rresp,
-  input [DATA_WIDTH - 1 : 0] rdata 
+  input [DATA_WIDTH - 1 : 0] rdata,
+  input rlast,
+  input [3:0] rid
 );
 
   // 当前PC寄存器
@@ -38,18 +44,22 @@ module ifu #(
   reg send_request;
   assign rready = rvalid;
   assign araddr = fetch_pc;
+  assign arid = 4'b0;
+  assign arsize = 3'h2; //每次传输2**arsize大小数据 
+  assign arlen = 8'b0;  // arburst == 2'b01(incr)时支持256次 其余最大为16 传输arlen+1次
+  assign arburst = 2'b0;//地址不变 2'h01时incr 2'h10时
 
   // 接收新的 PC
   wire accept_new_pc = wb_to_if_done;
 
   //当前流水级false或者id级准备好接收信息
   assign if_to_id_ready = !fetch_valid || id_to_if_ready;
-  assign if_to_id_valid = fetch_valid && rvalid && rready && rresp == 2'h0;
+  assign if_to_id_valid = fetch_valid && rvalid && rready && rresp == 2'h0 && rid == 4'b0 && rlast;
 
   always @(posedge clk) begin
     if (!rst) begin
       arvalid <= 1'b0;
-      fetch_pc <= 32'h8000_0000;
+      fetch_pc <= 32'h2000_0000;
       fetch_valid <= 1'b1;
       send_request <= 1'b0;
     end else begin

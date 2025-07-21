@@ -2,8 +2,8 @@
 #define __CPU_CPU_H__
 
 #include <common.h>
-#include <Vtop.h>
-#include <Vtop__Dpi.h>
+#include <VysyxSoCFull.h>
+#include <VysyxSoCFull__Dpi.h>
 
 #ifdef CONFIG_VCD
 #include <verilated_vcd_c.h>

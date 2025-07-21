@@ -1,5 +1,5 @@
 #include <utils.h>
-#include <Vtop__Dpi.h> //DPI-C函数的头文件 在该.h中声明了DPI-C函数
+#include <VysyxSoCFull__Dpi.h> //DPI-C函数的头文件 在该.h中声明了DPI-C函数
 
 typedef struct funcSymNode
 {

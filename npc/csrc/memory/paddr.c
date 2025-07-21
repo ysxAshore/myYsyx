@@ -10,6 +10,8 @@ extern CPUState cpu;
 uint8_t *guest_to_host(paddr_t paddr) { return pmem + paddr - CONFIG_MBASE; }
 paddr_t host_to_guest(uint8_t *haddr) { return haddr - pmem + CONFIG_MBASE; }
 
+uint8_t *mromAddr2pmem(paddr_t paddr) { return pmem + paddr - 0x20000000; }
+
 static word_t pmem_read(paddr_t addr, int len)
 {
   word_t ret = host_read(guest_to_host(addr), len);
@@ -80,4 +82,10 @@ extern "C" void mem_write(const svLogicVecVal *addr, const svLogicVecVal *data, 
   default:
     break;
   }
+}
+
+extern "C" void flash_read(int32_t addr, int32_t *data) { assert(0); }
+extern "C" void mrom_read(int32_t addr, int32_t *data)
+{
+  *data = *((int32_t *)mromAddr2pmem(addr));
 }

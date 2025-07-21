@@ -51,35 +51,36 @@ void init_cpu()
     tfp = new VerilatedVcdC;
     Verilated::traceEverOn(true);
     dut.trace(tfp, 0);
+    setenv("VL_VCD_BUFSIZE", "2097152", 1); // 2MB
     tfp->open("wave.vcd");
 #endif
 
-    dut.clk = 0;
-    dut.rst = 0;
+    dut.clock = 0;
+    dut.reset = 1;
     dut.eval();
-#ifdef CONFIG_VCD
-    if (sim_time >= CONFIG_VCD_START && sim_time <= CONFIG_VCD_END)
-        tfp->dump(sim_time++);
-#endif
 
     // 保持rst=0若干周期
     for (int i = 0; i < reset_cycles * clk_period; ++i)
     {
+        ++sim_time;
         if (sim_time % (clk_period / 2) == 0)
-            dut.clk = !dut.clk;
+            dut.clock = !dut.clock;
         dut.eval();
 #ifdef CONFIG_VCD
+        assert(tfp != NULL);
         if (sim_time >= CONFIG_VCD_START && sim_time <= CONFIG_VCD_END)
-            tfp->dump(sim_time++);
+            tfp->dump(sim_time);
 #endif
     }
 
     // 释放rst
-    dut.rst = 1;
+    dut.reset = 0;
     dut.eval();
 #ifdef CONFIG_VCD
+    assert(tfp != NULL);
+    ++sim_time;
     if (sim_time >= CONFIG_VCD_START && sim_time <= CONFIG_VCD_END)
-        tfp->dump(sim_time++);
+        tfp->dump(sim_time);
 #endif
 }
 
@@ -109,6 +110,7 @@ static void statistic()
         Log("Finish running in less than 1 us and can not calculate the simulation frequency");
 #ifdef CONFIG_VCD
     tfp->close();
+    delete tfp;
 #endif
 }
 
@@ -123,18 +125,20 @@ static void exec_once()
 {
     while (!Verilated::gotFinish())
     {
+        ++sim_time;
         paddr_t cur_pc = dut.pc;
         if (sim_time % (clk_period / 2) == 0)
         {
-            dut.clk = !dut.clk;
+            dut.clock = !dut.clock;
             dut.eval();
-            if (dut.clk && dut.execute_once) // 上升沿检测
+            if (dut.clock && dut.execute_once) // 上升沿检测
                 break;
         }
         dut.eval();
 #ifdef CONFIG_VCD
-        if (sim_time >= CONFIG_VCD_START && sim_time <= CONFIG_VCD_END)
-            tfp->dump(sim_time++);
+        assert(tfp != nullptr);
+        if (sim_time >= CONFIG_VCD_START && sim_time < CONFIG_VCD_END)
+            tfp->dump(sim_time);
 #endif
     }
 
@@ -179,10 +183,6 @@ static void execute(uint64_t n)
         exec_once();
         ++g_nr_guest_inst;
         trace_and_difftest();
-#ifdef CONFIG_VCD
-        if (sim_time % 1000 == 0)
-            tfp->flush();
-#endif
         if (npc_state.state != NPC_RUNNING)
             break;
         IFDEF(CONFIG_DEVICE, device_update());

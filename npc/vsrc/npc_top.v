@@ -1,11 +1,83 @@
-module top(
-	input clk,
-	input rst,
+module npc(
+	input clock,
+	input reset,
+	input io_interrupt,
+	
+	input io_master_awready,
+	output io_master_awvalid,
+	output [31:0] io_master_awaddr,
+	output [3:0] io_master_awid,
+	output [7:0] io_master_awlen,
+	output [2:0] io_master_awsize,
+	output [1:0] io_master_awburst,
+	
+	input io_master_wready,
+	output io_master_wvalid,
+	output [31:0] io_master_wdata,
+	output [3:0] io_master_wstrb,
+	output io_master_wlast,
+
+	output io_master_bready,
+	input io_master_bvalid,
+	input [1:0] io_master_bresp,
+	input [3:0] io_master_bid,
+
+	input io_master_arready,
+	output io_master_arvalid,
+	output [31:0] io_master_araddr,
+	output [3:0] io_master_arid,
+	output [7:0] io_master_arlen,
+	output [2:0] io_master_arsize,
+	output [1:0] io_master_arburst,
+
+	output io_master_rready,
+	input io_master_rvalid,
+	input [1:0] io_master_rresp,
+	input [3:0] io_master_rid,
+	input io_master_rlast,
+	input [31:0] io_master_rdata,
+
+	output io_slave_awready,
+	input io_slave_awvalid,
+	input [31:0] io_slave_awaddr,
+	input [3:0] io_slave_awid,
+	input [7:0] io_slave_awlen,
+	input [2:0] io_slave_awsize,
+	input [1:0] io_slave_awburst,
+	
+	output io_slave_wready,
+	input io_slave_wvalid,
+	input [31:0] io_slave_wdata,
+	input [3:0] io_slave_wstrb,
+	input io_slave_wlast,
+
+	input io_slave_bready,
+	output io_slave_bvalid,
+	output [1:0] io_slave_bresp,
+	output [3:0] io_slave_bid,
+
+	output io_slave_arready,
+	input io_slave_arvalid,
+	input [31:0] io_slave_araddr,
+	input [3:0] io_slave_arid,
+	input [7:0] io_slave_arlen,
+	input [2:0] io_slave_arsize,
+	input [1:0] io_slave_arburst,
+
+	input io_slave_rready,
+	output io_slave_rvalid,
+	output [1:0] io_slave_rresp,
+	output [3:0] io_slave_rid,
+	output io_slave_rlast,
+	output [31:0] io_slave_rdata,
+
 	output reg [31:0] inst,
 	output reg [31:0] pc,
 	output [31:0] dnpc,
 	output reg execute_once
 );
+	wire rst = !reset;
+
 	localparam DATA_WIDTH = 32;
 	localparam ADDR_WIDTH = 5;
 
@@ -17,15 +89,21 @@ module top(
 	wire id_to_if_ready;
 	wire wb_to_if_done;
 	wire                      ifu_arvalid;
-	wire [31 : 0] ifu_araddr;
+	wire [            31 : 0] ifu_araddr;
 	wire                      ifu_arready;
 	wire                      ifu_rvalid;
 	wire [DATA_WIDTH - 1 : 0] ifu_rdata;
 	wire [             1 : 0] ifu_rresp;
 	wire                      ifu_rready;
+	wire [			   3 : 0] ifu_arid;
+	wire [             7 : 0] ifu_arlen;
+	wire [             2 : 0] ifu_arsize;
+	wire [             1 : 0] ifu_arburst;
+	wire                      ifu_rlast;
+	wire [             3 : 0] ifu_rid;
 
 	assign dnpc = id_to_if_bus;
-	always @(posedge clk) begin
+	always @(posedge clock) begin
 		if(!rst) begin
 			pc <= 32'h8000_0000;
 			execute_once <= 1'b0;
@@ -45,7 +123,7 @@ module top(
 	ifu #(
 		.DATA_WIDTH(DATA_WIDTH)
 	)if_stage(
-		.clk(clk),
+		.clk(clock),
 		.rst(rst),
 		.id_to_if_bus(id_to_if_bus),
 		.id_to_if_valid(id_to_if_valid),
@@ -60,7 +138,13 @@ module top(
 		.rvalid(ifu_rvalid),
 		.rdata(ifu_rdata),
 		.rresp(ifu_rresp),
-		.rready(ifu_rready)
+		.rready(ifu_rready),
+		.arid(ifu_arid),
+		.arlen(ifu_arlen),
+		.arsize(ifu_arsize),
+		.arburst(ifu_arburst),
+		.rlast(ifu_rlast),
+		.rid(ifu_rid)
 	);
 
 	wire [DATA_WIDTH + DATA_WIDTH + DATA_WIDTH + ADDR_WIDTH + 19 - 1 : 0] id_to_exe_bus;
@@ -75,7 +159,7 @@ module top(
 		.ADDR_WIDTH(ADDR_WIDTH),
 		.DATA_WIDTH(DATA_WIDTH)
 	)id_stage(
-		.clk(clk),
+		.clk(clock),
 		.rst(rst),
 		.id_to_if_bus(id_to_if_bus),
 		.id_to_if_valid(id_to_if_valid),
@@ -91,7 +175,7 @@ module top(
 		.id_to_wb_ready(id_to_wb_ready)
 	);
 
-	wire [DATA_WIDTH + DATA_WIDTH + ADDR_WIDTH + 4 - 1 : 0] exe_to_mem_bus;
+	wire [DATA_WIDTH + DATA_WIDTH + ADDR_WIDTH + 8 - 1 : 0] exe_to_mem_bus;
 	wire exe_to_mem_valid;
 	wire mem_to_exe_ready;
 
@@ -102,13 +186,25 @@ module top(
 	wire [DATA_WIDTH - 1 : 0] lsu_rdata;
 	wire [             1 : 0] lsu_rresp;
 	wire                      lsu_rready;
+	wire [			   3 : 0] lsu_arid;
+	wire [             7 : 0] lsu_arlen;
+	wire [             2 : 0] lsu_arsize;
+	wire [             1 : 0] lsu_arburst;
+	wire                      lsu_rlast;
+	wire [             3 : 0] lsu_rid;
 	wire                      lsu_awvalid;
-	wire [32 - 1 : 0] lsu_awaddr;
+	wire [        32 - 1 : 0] lsu_awaddr;
 	wire                      lsu_awready;
+	wire [             3 : 0] lsu_awid;
+	wire [             7 : 0] lsu_awlen;
+	wire [             2 : 0] lsu_awsize;
+	wire [             1 : 0] lsu_awburst;
 	wire                      lsu_wvalid;
 	wire [DATA_WIDTH - 1 : 0] lsu_wdata;
 	wire [			   3 : 0] lsu_wstrb;		
+	wire 					  lsu_wlast;
 	wire                      lsu_wready;
+	wire [ 			   3 : 0] lsu_bid;	
 	wire                      lsu_bvalid;
 	wire [             1 : 0] lsu_bresp;
 	wire                      lsu_bready;
@@ -117,7 +213,7 @@ module top(
 		.ADDR_WIDTH(ADDR_WIDTH),
 		.DATA_WIDTH(DATA_WIDTH)
 	)exe_stage(
-		.clk(clk),
+		.clk(clock),
 		.rst(rst),
 		.id_to_exe_bus(id_to_exe_bus),
 		.id_to_exe_valid(id_to_exe_valid),
@@ -141,7 +237,19 @@ module top(
 	  	.wready(lsu_wready),
 	  	.bready(lsu_bready),
 	  	.bvalid(lsu_bvalid),
-	  	.bresp(lsu_bresp)
+	  	.bresp(lsu_bresp),
+		.arid(lsu_arid),
+		.arlen(lsu_arlen),
+		.arsize(lsu_arsize),
+		.arburst(lsu_arburst),
+		.rlast(lsu_rlast),
+		.rid(lsu_rid),
+		.awid(lsu_awid),
+		.awlen(lsu_awlen),
+		.awsize(lsu_awsize),
+		.awburst(lsu_awburst),
+		.wlast(lsu_wlast),
+		.bid(lsu_bid)
 	);
 
 	wire [DATA_WIDTH + ADDR_WIDTH + 1 - 1 : 0] mem_to_wb_bus;
@@ -151,7 +259,7 @@ module top(
 		.ADDR_WIDTH(ADDR_WIDTH),
 		.DATA_WIDTH(DATA_WIDTH)
 	)mem_stage(
-		.clk(clk),
+		.clk(clock),
 		.rst(rst),
 		.exe_to_mem_bus(exe_to_mem_bus),
 		.exe_to_mem_valid(exe_to_mem_valid),
@@ -165,7 +273,7 @@ module top(
 		.ADDR_WIDTH(ADDR_WIDTH),
 		.DATA_WIDTH(DATA_WIDTH)
 	)wb_stage(
-		.clk(clk),
+		.clk(clock),
 		.rst(rst),
 		.mem_to_wb_bus(mem_to_wb_bus),
 		.mem_to_wb_valid(mem_to_wb_valid),
@@ -205,7 +313,7 @@ module top(
 
 	axi4lite_arbiter arbiter(
 	    // 时钟/复位
-	    .clk        (clk),
+	    .clk        (clock),
 	    .rst        (rst),
 
 	    .ifu_arvalid(ifu_arvalid),
@@ -215,6 +323,12 @@ module top(
 	    .ifu_rdata  (ifu_rdata),
 	    .ifu_rresp  (ifu_rresp),
 	    .ifu_rready (ifu_rready),
+		.ifu_arid	(ifu_arid),
+		.ifu_arlen 	(ifu_arlen),
+		.ifu_arsize	(ifu_arsize),
+		.ifu_arburst(ifu_arburst),
+		.ifu_rlast	(ifu_rlast),
+		.ifu_rid	(ifu_rid),
 
 	    .lsu_arvalid(lsu_arvalid),
 	    .lsu_araddr (lsu_araddr),
@@ -223,190 +337,65 @@ module top(
 	    .lsu_rdata  (lsu_rdata),
 	    .lsu_rresp  (lsu_rresp),
 	    .lsu_rready (lsu_rready),
+		.lsu_arid	(lsu_arid),
+		.lsu_arlen	(lsu_arlen),
+		.lsu_arsize	(lsu_arsize),
+		.lsu_arburst(lsu_arburst),
+		.lsu_rlast	(lsu_rlast),
+		.lsu_rid	(lsu_rid),
 
 	    .lsu_awvalid(lsu_awvalid),
 	    .lsu_awaddr (lsu_awaddr),
 	    .lsu_awready(lsu_awready),
+		.lsu_awid	(lsu_awid),
+		.lsu_awlen	(lsu_awlen),
+		.lsu_awsize	(lsu_awsize),
+		.lsu_awburst(lsu_awburst),
+
 	    .lsu_wvalid (lsu_wvalid),
 	    .lsu_wdata  (lsu_wdata),
 		.lsu_wstrb  (lsu_wstrb),
 	    .lsu_wready (lsu_wready),
+		.lsu_wlast	(lsu_wlast),
+
 	    .lsu_bvalid (lsu_bvalid),      
 	    .lsu_bresp  (lsu_bresp),
 	    .lsu_bready (lsu_bready),
+		.lsu_bid	(lsu_bid),
 
-	    .arvalid    (arvalid),
-	    .araddr     (araddr),
-	    .arready    (arready),
-	    .rvalid     (rvalid),
-	    .rdata      (rdata),
-	    .rresp      (rresp),
-	    .rready     (rready),
-	    .awvalid    (awvalid),
-	    .awaddr     (awaddr),
-	    .awready    (awready),
-	    .wvalid     (wvalid),
-	    .wdata      (wdata),
-		.wstrb      (wstrb),
-	    .wready     (wready),
-	    .bvalid     (bvalid),
-	    .bresp      (bresp),
-	    .bready     (bready)
+	    .arvalid    (io_master_arvalid),
+	    .araddr     (io_master_araddr),
+		.arid       (io_master_arid),
+		.arlen  	(io_master_arlen),
+		.arsize 	(io_master_arsize),
+		.arburst	(io_master_arburst),
+	    .arready    (io_master_arready),
+
+	    .rvalid     (io_master_rvalid),
+	    .rdata      (io_master_rdata),
+	    .rresp      (io_master_rresp),
+	    .rready     (io_master_rready),
+		.rlast 		(io_master_rlast),
+		.rid		(io_master_rid),
+
+	    .awvalid    (io_master_awvalid),
+	    .awaddr     (io_master_awaddr),
+	    .awready    (io_master_awready),
+		.awid       (io_master_awid),
+		.awlen  	(io_master_awlen),
+		.awsize 	(io_master_awsize),
+		.awburst	(io_master_awburst),
+
+	    .wvalid     (io_master_wvalid),
+	    .wdata      (io_master_wdata),
+		.wstrb      (io_master_wstrb),
+		.wlast		(io_master_wlast),
+	    .wready     (io_master_wready),
+
+	    .bvalid     (io_master_bvalid),
+	    .bresp      (io_master_bresp),
+	    .bready     (io_master_bready),
+		.bid		(io_master_bid)
 	);
 
-
-    // 到 UART
-    wire                 uart_arvalid;
-    wire [32-1:0] uart_araddr;
-    wire                  uart_arready;
-
-    wire                  uart_rvalid;
-    wire  [DATA_WIDTH-1:0] uart_rdata;
-    wire  [1:0]            uart_rresp;
-    wire                 uart_rready;
-
-    wire                 uart_awvalid;
-    wire [32-1:0] uart_awaddr;
-    wire                  uart_awready;
-
-    wire                 uart_wvalid;
-    wire [DATA_WIDTH-1:0] uart_wdata;
-    wire  [          3:0] uart_wstrb;
-    wire                  uart_wready;
-
-    wire                  uart_bvalid;
-    wire  [1:0]            uart_bresp;
-    wire                 uart_bready;
-
-    // 到 SRAM
-    wire                 sram_arvalid;
-    wire [32-1:0] sram_araddr;
-    wire                  sram_arready;
-
-    wire                  sram_rvalid;
-    wire  [DATA_WIDTH-1:0] sram_rdata;
-    wire  [1:0]            sram_rresp;
-    wire                 sram_rready;
-
-    wire                 sram_awvalid;
-    wire [32-1:0] sram_awaddr;
-    wire                  sram_awready;
-
-    wire                 sram_wvalid;
-    wire [DATA_WIDTH-1:0] sram_wdata;
-    wire  [          3:0] sram_wstrb;
-    wire                  sram_wready;
-
-    wire                  sram_bvalid;
-    wire  [1:0]            sram_bresp;
-    wire                 sram_bready;
-
-	axi4lite_xbar xbar(
-        .clk(clk),
-        .rst(rst),
-        
-        // 来自 Arbiter 的 master 接口
-        .arvalid(arvalid),
-        .araddr(araddr),
-        .arready(arready),
-        .rvalid(rvalid),
-        .rdata(rdata),
-        .rresp(rresp),
-        .rready(rready),
-        
-        .awvalid(awvalid),
-        .awaddr(awaddr),
-        .awready(awready),
-        .wvalid(wvalid),
-        .wdata(wdata),
-        .wstrb(wstrb),
-        .wready(wready),
-        
-        .bvalid(bvalid),
-        .bresp(bresp),
-        .bready(bready),
-        
-        // 到 UART
-        .uart_arvalid(uart_arvalid),
-        .uart_araddr(uart_araddr),
-        .uart_arready(uart_arready),
-        .uart_rvalid(uart_rvalid),
-        .uart_rdata(uart_rdata),
-        .uart_rresp(uart_rresp),
-        .uart_rready(uart_rready),
-        .uart_awvalid(uart_awvalid),
-        .uart_awaddr(uart_awaddr),
-        .uart_awready(uart_awready),
-        .uart_wvalid(uart_wvalid),
-        .uart_wdata(uart_wdata),
-        .uart_wstrb(uart_wstrb),
-        .uart_wready(uart_wready),
-        .uart_bvalid(uart_bvalid),
-        .uart_bresp(uart_bresp),
-        .uart_bready(uart_bready),
-        
-        // 到 SRAM
-        .sram_arvalid(sram_arvalid),
-        .sram_araddr(sram_araddr),
-        .sram_arready(sram_arready),
-        .sram_rvalid(sram_rvalid),
-        .sram_rdata(sram_rdata),
-        .sram_rresp(sram_rresp),
-        .sram_rready(sram_rready),
-        .sram_awvalid(sram_awvalid),
-        .sram_awaddr(sram_awaddr),
-        .sram_awready(sram_awready),
-        .sram_wvalid(sram_wvalid),
-        .sram_wdata(sram_wdata),
-        .sram_wstrb(sram_wstrb),
-        .sram_wready(sram_wready),
-        .sram_bvalid(sram_bvalid),
-        .sram_bresp(sram_bresp),
-        .sram_bready(sram_bready)
-    );
-
-	axi4lite_sram sram(
-		.clk 		(clk),
-		.rst        (rst),
-	    .arvalid    (sram_arvalid),
-	    .araddr     (sram_araddr),
-	    .arready    (sram_arready),
-	    .rvalid     (sram_rvalid),
-	    .rdata      (sram_rdata),
-	    .rresp      (sram_rresp),
-	    .rready     (sram_rready),
-	    .awvalid    (sram_awvalid),
-	    .awaddr     (sram_awaddr),
-	    .awready    (sram_awready),
-	    .wvalid     (sram_wvalid),
-	    .wdata      (sram_wdata),
-		.wstrb      (sram_wstrb),
-	    .wready     (sram_wready),
-	    .bvalid     (sram_bvalid),
-	    .bresp      (sram_bresp),
-	    .bready     (sram_bready)
-	);
-
-	axi4lite_uart uart(
-		.clk 		(clk),
-		.rst        (rst),
-	    .arvalid    (uart_arvalid),
-	    .araddr     (uart_araddr),
-	    .arready    (uart_arready),
-	    .rvalid     (uart_rvalid),
-	    .rdata      (uart_rdata),
-	    .rresp      (uart_rresp),
-	    .rready     (uart_rready),
-	    .awvalid    (uart_awvalid),
-	    .awaddr     (uart_awaddr),
-	    .awready    (uart_awready),
-	    .wvalid     (uart_wvalid),
-	    .wdata      (uart_wdata),
-		.wstrb      (uart_wstrb),
-	    .wready     (uart_wready),
-	    .bvalid     (uart_bvalid),
-	    .bresp      (uart_bresp),
-	    .bready     (uart_bready)
-	);
 endmodule
-

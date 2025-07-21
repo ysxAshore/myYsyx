@@ -6,26 +6,42 @@ module exu #(ADDR_WIDTH = 5, DATA_WIDTH = 32)(
 	input id_to_exe_valid,
 	output exe_to_id_ready,
 
-	output [DATA_WIDTH + DATA_WIDTH + ADDR_WIDTH + 4 - 1 : 0] exe_to_mem_bus,
+	output [DATA_WIDTH + DATA_WIDTH + ADDR_WIDTH + 8 - 1 : 0] exe_to_mem_bus,
 	output exe_to_mem_valid,
 	input mem_to_exe_ready,
 	
 	//AXI
-	output reg arvalid,
 	input arready,
+	output reg arvalid,
 	output [31 : 0] araddr,
+	output [3:0] arid,
+	output [7:0] arlen,
+	output [2:0] arsize,
+	output [1:0] arburst,
+
+	output rready,
+	input rvalid,
+	input rlast,
+	input [1:0] rresp,
+	input [3:0] rid,
+	input [DATA_WIDTH - 1 : 0] rdata,
+
+	input awready,
 	output reg awvalid,
 	output [31 : 0] awaddr,
+	output [3:0] awid,
+	output [7:0] awlen,
+	output [2:0] awsize,
+	output [1:0] awburst,
+
+	input wready,
 	output reg wvalid,
 	output [3:0] wstrb,
+	output wlast,
 	output [DATA_WIDTH - 1 : 0] wdata,
-	input awready,
-	input wready,
-	input rvalid,
-	output rready,
-	input [1:0] rresp,
-	input [DATA_WIDTH - 1 : 0] rdata,
+	
 	input bvalid,
+	input [3:0] bid,
 	output bready,
 	input [1:0] bresp
 );
@@ -42,23 +58,54 @@ module exu #(ADDR_WIDTH = 5, DATA_WIDTH = 32)(
 	
 	assign exe_to_id_ready = ~exe_valid || mem_to_exe_ready;
 	
+	wire [3:0] rstrb;
 	wire [DATA_WIDTH - 1 : 0] load_data;
 	wire [DATA_WIDTH-1:0] aluResult;
 
 	//AXI
 	assign rready = rvalid;
 	assign bready = bvalid;
+	
 	assign araddr = aluResult;
+	assign arid = 4'b1;
+  	assign arsize = load_inst == 3'b001 || load_inst == 3'b100 ? 3'h0 :
+					load_inst == 3'b010 || load_inst == 3'b101 ? 3'h1 :
+					load_inst == 3'b011 ? 3'h2 : 3'h0;//每次传输2**arsize大小数据 
+	assign rstrb = load_inst == 3'b001 || load_inst == 3'b100 ? (1 << aluResult[1:0]) : //lb/lbu
+				   load_inst == 3'b010 || load_inst == 3'b101 ? (aluResult[1:0] == 2'b00 ? 4'b0011 :
+				   												 aluResult[1:0] == 2'b01 ? 4'b0110 :
+																 aluResult[1:0] == 2'b10 ? 4'b1100 : 4'b0) :  //lh/lhu
+				   load_inst == 3'b011 ? 4'b1111 : 4'b0;
+	assign arlen = 8'b0;  // arburst == 2'b01(incr)时支持256次 其余最大为16 传输arlen+1次
+  	assign arburst = 2'b0;//地址不变 2'h01时incr 2'h10时
 	assign load_data = rdata;
+	
+	assign awid = 4'b1;
+	assign awlen = 8'h0;
+	assign awsize = 3'h2;
+	assign awburst = 2'h0;
 	assign awaddr = aluResult;
-	assign wdata = store_data;
-	assign wstrb = store_mask;
+
+	wire [31:0] byteWriteData = aluResult[1:0] == 2'h1 ? store_data << 8 :
+								aluResult[1:0] == 2'h2 ? store_data << 16 :
+								aluResult[1:0] == 2'h3 ? store_data << 24 : store_data;
+	wire [31:0] halfWriteData = aluResult[1:0] == 2'h1 ? store_data << 8 :
+								aluResult[1:0] == 2'h2 ? store_data << 16 : store_data;								
+	assign wdata = store_mask == 4'h1 ? byteWriteData :
+				   store_mask == 4'h3 ? halfWriteData :
+				   store_data;
+	assign wlast = 'b1;
+	assign wstrb = store_mask == 4'h1 ? (1 << aluResult[1:0]) : //sb
+				   store_mask == 4'h3 ? (aluResult[1:0] == 2'b00 ? 4'b0011 : //sh
+				   						 aluResult[1:0] == 2'b01 ? 4'b0110 :
+										 aluResult[1:0] == 2'b10 ? 4'b1100 : 4'b0) :
+				   store_mask == 4'hf ? 4'b1111 : 4'b0; //sw
 
 	reg send_request_ar_aw;
 	reg send_request_w;
 
-	assign exe_to_mem_valid = exe_valid && load_inst != 3'b0 ? rvalid && rready && rresp == 2'b0 : 
-							  exe_valid && store_mask != 4'b0 ? bvalid && bready && bresp == 2'b0 :
+	assign exe_to_mem_valid = exe_valid && load_inst != 3'b0 ? rvalid && rready && rresp == 2'b0 && rlast && rid == 4'h1: 
+							  exe_valid && store_mask != 4'b0 ? bvalid && bready && bresp == 2'b0 && bid == 4'h1:
 							  exe_valid;
 
 	always @(posedge clk) begin
@@ -105,11 +152,11 @@ module exu #(ADDR_WIDTH = 5, DATA_WIDTH = 32)(
 				end 
 			end
 
-			if(rvalid && rready) begin
+			if(rvalid && rready && rid == 4'h1) begin
 				send_request_ar_aw <= 1'b0;
 			end
 
-			if(bvalid && bready) begin
+			if(bvalid && bready && bid == 4'h1) begin
 				send_request_ar_aw <= 1'b0;
 				send_request_w <= 1'b0;
 			end
@@ -131,10 +178,11 @@ module exu #(ADDR_WIDTH = 5, DATA_WIDTH = 32)(
 	);
 
 	assign exe_to_mem_bus = {
+		load_inst,
 		d_regW,
 		d_regAddr,
 		aluResult,
-		load_inst,
+		rstrb,
 		load_data
 	};
 endmodule
