@@ -42,14 +42,9 @@ module mmu #(ADDR_WIDTH = 5, DATA_WIDTH = 32)(
 		end
 	end
 	
-	wire [DATA_WIDTH - 1 :0] byteReadData = {DATA_WIDTH{load_strb == 4'h1}} & {{(DATA_WIDTH - 8){load_data[7] && load_inst == 3'h1}},load_data[7:0]} |
-							   {DATA_WIDTH{load_strb == 4'h2}} & {{(DATA_WIDTH - 8){load_data[15] && load_inst == 3'h1}},load_data[15:8]} |
-							   {DATA_WIDTH{load_strb == 4'h4}} & {{(DATA_WIDTH - 8){load_data[23] && load_inst == 3'h1}},load_data[23:16]} |
-							   {DATA_WIDTH{load_strb == 4'h8}} & {{(DATA_WIDTH - 8){load_data[31] && load_inst == 3'h1}},load_data[31:24]} ;
+	wire [DATA_WIDTH - 1 :0] byteReadData = {{(DATA_WIDTH - 8){load_data[7] && load_inst == 3'h1}},load_data[7:0]};
 	
-	wire [DATA_WIDTH - 1:0] halfReadData = {DATA_WIDTH{load_strb == 4'h3}} & {{(DATA_WIDTH - 16){load_data[15] && load_inst == 3'h2}},load_data[15:0]} |
-							   {DATA_WIDTH{load_strb == 4'h6}} & {{(DATA_WIDTH - 16){load_data[23] && load_inst == 3'h2}},load_data[23:8]} |
-							   {DATA_WIDTH{load_strb == 4'hc}} & {{(DATA_WIDTH - 16){load_data[31] && load_inst == 3'h2}},load_data[31:16]} ;
+	wire [DATA_WIDTH - 1:0] halfReadData = {{(DATA_WIDTH - 16){load_data[15] && load_inst == 3'h2}},load_data[15:0]};
 	wire [DATA_WIDTH - 1:0] m_regData = load_inst == 3'h0 ? e_regData :
 					 		load_inst == 3'h1 || load_inst == 3'h4 ? byteReadData :
 							load_inst == 3'h2 || load_inst == 3'h5 ? halfReadData :

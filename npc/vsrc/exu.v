@@ -66,6 +66,7 @@ module exu #(ADDR_WIDTH = 5, DATA_WIDTH = 32)(
 	assign rready = rvalid;
 	assign bready = bvalid;
 	
+	// addr must align 4B
 	assign araddr = aluResult;
 	assign arid = 4'b1;
   	assign arsize = load_inst == 3'b001 || load_inst == 3'b100 ? 3'h0 :
@@ -82,7 +83,9 @@ module exu #(ADDR_WIDTH = 5, DATA_WIDTH = 32)(
 	
 	assign awid = 4'b1;
 	assign awlen = 8'h0;
-	assign awsize = 3'h2;
+	assign awsize = store_mask == 4'h1 ? 3'h0 :
+					store_mask == 4'h3 ? 3'h1 :
+					store_mask == 4'hf ? 3'h2 : 3'h0;
 	assign awburst = 2'h0;
 	assign awaddr = aluResult;
 
