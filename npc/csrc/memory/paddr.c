@@ -5,6 +5,7 @@
 #include <verilated_vcd_c.h>
 
 static uint8_t pmem[CONFIG_MSIZE] PG_ALIGN = {};
+uint8_t fmem[0x10000000];
 extern CPUState cpu;
 
 uint8_t *guest_to_host(paddr_t paddr) { return pmem + paddr - CONFIG_MBASE; }
@@ -84,7 +85,10 @@ extern "C" void mem_write(const svLogicVecVal *addr, const svLogicVecVal *data, 
   }
 }
 
-extern "C" void flash_read(int32_t addr, int32_t *data) { assert(0); }
+extern "C" void flash_read(int32_t addr, int32_t *data)
+{
+  *data = *((int32_t *)(fmem + addr));
+}
 extern "C" void mrom_read(int32_t addr, int32_t *data)
 {
   *data = *((int32_t *)mromAddr2pmem(addr));

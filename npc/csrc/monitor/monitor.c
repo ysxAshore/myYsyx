@@ -8,6 +8,8 @@ static char *ref_so_file = NULL;
 static int port = 1234;
 static uint32_t *img = NULL;
 
+extern uint8_t fmem[0x10000000];
+
 void init_log(const char *log_file);
 void sdb_set_batch_mode();
 void init_cpu();
@@ -60,6 +62,30 @@ static long load_img()
 
   fclose(fp);
   return size;
+}
+
+static void test_fmem()
+{
+  /* 测试flash读取内容 SPI and FAST_FLASH */
+  //  for (size_t i = 0; i < 256; ++i)
+  //    fmem[i] = i;
+
+  /* 将char-test程序复制到flash中 然后读取并拷贝到sram中的某地址 跳转并执行*/
+  FILE *fp = fopen("/home/sxyang/Projects/ysyx/ysyxSoC/uart_test/char-test.bin", "rb");
+  Assert(fp, "Can not open '%s'", "char-test.bin");
+
+  fseek(fp, 0, SEEK_END);
+  long size = ftell(fp);
+
+  *((uint32_t *)fmem) = size;
+
+  Log("The image is %s, size = %ld", "char-test.bin", size);
+
+  fseek(fp, 0, SEEK_SET);
+  int ret = fread(fmem + 4, size, 1, fp);
+  assert(ret == 1);
+
+  fclose(fp);
 }
 
 static int parse_args(int argc, char *argv[])
@@ -128,6 +154,8 @@ void init_monitor(int argc, char *argv[])
   IFDEF(CONFIG_DIFFTEST, init_difftest(ref_so_file, img_size, port));
 
   IFDEF(CONFIG_DEVICE, init_device());
+
+  test_fmem();
 
   welcome();
 }

@@ -97,6 +97,7 @@ module exu #(ADDR_WIDTH = 5, DATA_WIDTH = 32)(
 	assign wdata = store_mask == 4'h1 ? byteWriteData :
 				   store_mask == 4'h3 ? halfWriteData :
 				   store_data;
+	//assign wdata = store_data;
 	assign wlast = 'b1;
 	assign wstrb = store_mask == 4'h1 ? (1 << aluResult[1:0]) : //sb
 				   store_mask == 4'h3 ? (aluResult[1:0] == 2'b00 ? 4'b0011 : //sh
