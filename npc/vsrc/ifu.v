@@ -59,7 +59,7 @@ module ifu #(
   always @(posedge clk) begin
     if (!rst) begin
       arvalid <= 1'b0;
-      fetch_pc <= 32'h2000_0000;
+      fetch_pc <= 32'h3000_0000;
       fetch_valid <= 1'b1;
       send_request <= 1'b0;
     end else begin

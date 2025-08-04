@@ -57,7 +57,8 @@ static long load_img()
   Log("The image is %s, size = %ld", img_file, size);
 
   fseek(fp, 0, SEEK_SET);
-  int ret = fread(guest_to_host(RESET_VECTOR), size, 1, fp);
+  // int ret = fread(guest_to_host(RESET_VECTOR), size, 1, fp);
+  int ret = fread(fmem, size, 1, fp);
   assert(ret == 1);
 
   fclose(fp);
@@ -155,7 +156,7 @@ void init_monitor(int argc, char *argv[])
 
   IFDEF(CONFIG_DEVICE, init_device());
 
-  test_fmem();
+  // test_fmem();
 
   welcome();
 }
