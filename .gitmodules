@@ -3,4 +3,4 @@
 	url = git@github.com:ysxAshore/ics2024.git
 [submodule "ysyxSoC"]
 	path = ysyxSoC
-	url = git@github.com:OSCPU/ysyxSoC.git
+	url = git@github.com:ysxAshore/myYsyxSoC.git
