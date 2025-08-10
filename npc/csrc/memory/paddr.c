@@ -98,7 +98,20 @@ extern "C" void psram_read(int32_t addr, int32_t *data)
 {
   *data = *((int32_t *)(psram + (addr & 0xfffffffc)));
 }
-extern "C" void psram_write(int32_t addr, int32_t data)
+extern "C" void psram_write(int32_t addr, int32_t data, int32_t size)
 {
-  *(int32_t *)(psram + addr) = data;
+  switch (size)
+  {
+  case 0:
+    *(int8_t *)(psram + addr) = data;
+    break;
+  case 1:
+    *(int16_t *)(psram + addr) = data;
+    break;
+  case 2:
+    *(int32_t *)(psram + addr) = data;
+    break;
+  default:
+    break;
+  }
 }
