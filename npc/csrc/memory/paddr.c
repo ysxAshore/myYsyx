@@ -7,6 +7,7 @@
 static uint8_t pmem[CONFIG_MSIZE] PG_ALIGN = {};
 uint8_t fmem[0x10000000];
 uint8_t psram[0x20000000];
+uint8_t sdram[4 * 8192 * 512 * 2];
 extern CPUState cpu;
 
 uint8_t *guest_to_host(paddr_t paddr) { return pmem + paddr - CONFIG_MBASE; }
@@ -114,4 +115,17 @@ extern "C" void psram_write(int32_t addr, int32_t data, int32_t size)
   default:
     break;
   }
+}
+extern "C" void sdram_read(int32_t bank_a, int32_t row_a, int32_t col_a, int32_t *data)
+{
+  *data = *(int16_t *)((int16_t *)sdram + row_a * 4 * 512 + bank_a * 512 + col_a);
+}
+extern "C" void sdram_write(int32_t bank_a, int32_t row_a, int32_t col_a, int32_t data, int32_t wsel)
+{
+  uintptr_t addr = (uintptr_t)((int16_t *)sdram + row_a * 4 * 512 + bank_a * 512 + col_a);
+  uint16_t origin = *(uint16_t *)addr;
+  uint16_t wdata = wsel == 0 ? data & 0xffff : wsel == 1 ? data & 0xff00 | origin & 0xff
+                                           : wsel == 2   ? data & 0x00ff | origin & 0xff00
+                                                         : origin;
+  *(uint16_t *)addr = wdata;
 }
