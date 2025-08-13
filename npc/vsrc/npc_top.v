@@ -1,4 +1,4 @@
-module npc(
+module NPC(
 	input clock,
 	input reset,
 	input io_interrupt,
@@ -71,10 +71,10 @@ module npc(
 	output io_slave_rlast,
 	output [31:0] io_slave_rdata,
 
-	output reg [31:0] inst,
-	output reg [31:0] pc,
-	output [31:0] dnpc,
-	output reg execute_once
+	output reg [31:0] io_inst,
+	output reg [31:0] io_pc,
+	output [31:0] io_dnpc,
+	output reg io_execute_once
 );
 	wire rst = !reset;
 
@@ -102,20 +102,20 @@ module npc(
 	wire                      ifu_rlast;
 	wire [             3 : 0] ifu_rid;
 
-	assign dnpc = id_to_if_bus;
+	assign io_dnpc = id_to_if_bus;
 	always @(posedge clock) begin
 		if(!rst) begin
-			pc <= 32'h8000_0000;
-			execute_once <= 1'b0;
+			io_pc <= 32'h8000_0000;
+			io_execute_once <= 1'b0;
 		end else begin
 			if(if_to_id_valid && id_to_if_ready) begin
-				inst <= if_to_id_bus[DATA_WIDTH - 1 : 0];
-				pc <= if_to_id_bus[DATA_WIDTH + DATA_WIDTH - 1 : DATA_WIDTH];
+				io_inst <= if_to_id_bus[DATA_WIDTH - 1 : 0];
+				io_pc <= if_to_id_bus[DATA_WIDTH + DATA_WIDTH - 1 : DATA_WIDTH];
 			end
 			if(wb_to_id_valid && id_to_wb_ready) begin
-				execute_once <= 1'b1;
-			end else if(execute_once) begin
-				execute_once <= 1'b0;
+				io_execute_once <= 1'b1;
+			end else if(io_execute_once) begin
+				io_execute_once <= 1'b0;
 			end
 		end
 	end
