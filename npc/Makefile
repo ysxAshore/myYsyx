@@ -16,7 +16,25 @@ NAME    = $(GUEST_ISA)-nemu-$(ENGINE)
 FILELIST_MK = $(shell find -L csrc -name "filelist.mk")
 include $(FILELIST_MK)
 
+# 顶层模块名称
+TOPNAME = ysyxSoCFull
+
+# make输出目录
+BUILD_DIR = ./build
+# verilator编译得到的objdir
+OBJ_DIR = $(BUILD_DIR)/obj_dir
+BIN = $(BUILD_DIR)/$(TOPNAME)
+
 # project source
+# 自定义的约束文件路径
+NXDC_FILES = constr/ysyxSoCFull.nxdc
+
+# 构建auto_bind.cpp 用于通过函数自动绑定所有引脚
+SRC_AUTO_BIND = $(abspath $(BUILD_DIR)/auto_bind.cpp)
+
+$(SRC_AUTO_BIND): $(NXDC_FILES)
+	python3 $(NVBOARD_HOME)/scripts/auto_pin_bind.py $^ $@
+
 # 在vsrc目录下找到所有的.v文件
 VSRCS = $(shell find $(abspath ./vsrc) -name "*.v") 
 VSRCS += $(shell find /home/sxyang/Projects/ysyx/ysyxSoC/perip -name "*.v")
@@ -28,9 +46,9 @@ CSRCS-BLACKLIST-y += $(CSRCS-BLACKLIST) $(if $(DIRS-BLACKLIST-y), \
   						$(shell find -L $(DIRS-BLACKLIST-y) -name "*.c" | sed 's|^\./||'),)
 CSRCS-y += $(shell find -L $(DIRS-y) -name "*.c" | sed 's|^\./||')
 CSRCS = $(filter-out $(CSRCS-BLACKLIST-y),$(CSRCS-y))
+CSRCS += $(SRC_AUTO_BIND)
 
-# 顶层模块名称
-TOPNAME = ysyxSoCFull
+# 编译参数
 INC_PATH ?= 
 VERILATOR_INC_PATH += /home/sxyang/Projects/ysyx/ysyxSoC/perip/uart16550/rtl /home/sxyang/Projects/ysyx/ysyxSoC/perip/spi/rtl
 # verilator路径
@@ -51,17 +69,15 @@ VERILATOR_CFLAGS += -MMD --build -cc --exe --trace\
 				-DVL_TRACE_BUFFER_SIZE=8388608 \
 		       	$(addprefix -I, $(VERILATOR_INC_PATH)) \
 				$(VERILOG_DEFINES)
-# make输出目录
-BUILD_DIR = ./build
-# verilator编译得到的objdir
-OBJ_DIR = $(BUILD_DIR)/obj_dir
-BIN = $(BUILD_DIR)/$(TOPNAME)
 
 # 默认目标:使用verilator构建可执行文件
 .DEFAULT_GOAL := $(BIN)
 
 # mkdir ./build
 $(shell mkdir -p $(BUILD_DIR)) 
+
+# rules for NVBoard
+include $(NVBOARD_HOME)/scripts/nvboard.mk
 
 # rules for verilator
 # INC_PATHS存储包含路径(include paths)的目录列表

@@ -1,6 +1,7 @@
 #include <cpu/cpu.h>
 #include <cpu/difftest.h>
 #include <memory/paddr.h>
+#include <nvboard.h>
 
 #define MAX_INST_TO_PRINT 16
 
@@ -18,6 +19,7 @@ static uint64_t g_timer = 0; // unit: us
 
 extern bool isFinish;
 extern NPCState npc_state;
+extern void nvboard_bind_all_pins(TOP_NAME *top);
 
 #ifdef CONFIG_ITRACE
 char logbuf[128];
@@ -54,6 +56,11 @@ void init_cpu()
     setenv("VL_VCD_BUFSIZE", "2097152", 1); // 2MB
     tfp->open("wave.vcd");
 #endif
+
+    // 绑定引脚
+    nvboard_bind_all_pins(&dut);
+    // 初始化nvboard
+    nvboard_init();
 
     dut.clock = 0;
     dut.reset = 1;
@@ -125,6 +132,7 @@ static void exec_once()
 {
     while (!Verilated::gotFinish())
     {
+        nvboard_update();
         ++sim_time;
         paddr_t cur_pc = dut.pc;
         if (sim_time % (clk_period / 2) == 0)

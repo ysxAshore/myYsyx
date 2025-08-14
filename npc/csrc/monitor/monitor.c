@@ -44,7 +44,8 @@ static long load_img()
     img[0] = 0x00a00093; // addi x1,x0,10
     img[1] = 0x0ff00113; // addi x2,x0,255
     img[2] = 0x00100073; // ebreak
-    memcpy(guest_to_host(RESET_VECTOR), img, 12);
+    // memcpy(guest_to_host(RESET_VECTOR), img, 12);
+    memcpy(fmem, img, 12);
     return 12; // built-in image size
   }
 
