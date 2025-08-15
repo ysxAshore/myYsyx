@@ -89,9 +89,12 @@ extern "C" void mem_write(const svLogicVecVal *addr, const svLogicVecVal *data, 
 
 extern "C" void time_read(int32_t addr, int32_t *data)
 {
-  uint64_t us = get_time_internal();
-  if (addr & 0xf == 0xc)
-    *data = us >> 32;
+  static uint64_t us;
+  if ((addr & 0xf) == 0xc)
+  {
+    us = get_time_internal();
+    *data = (uint32_t)(us >> 32);
+  }
   else
     *data = (uint32_t)us;
 }
