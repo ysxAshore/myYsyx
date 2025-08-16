@@ -10,7 +10,7 @@ bool is_uart_rx_idle = true;
 
 UART::UART(SDL_Renderer *rend, int cnt, int init_val, int ct, int x, int y, int w, int h):
     Component(rend, cnt, init_val, ct),
-    tx_state(0), rx_state(0), divisor(16), need_update_gui(false) {
+    tx_state(0), rx_state(0), divisor(160), need_update_gui(false) {
   term = new Term(rend, x, y, w, h);
 
   SDL_Rect *rect_ptr = new SDL_Rect;
@@ -43,7 +43,7 @@ void UART::tx_receive() {
   uint8_t tx = *p_tx;
   if (tx_state == 0) { // idle
     if (!tx) { // start bit
-      tx_data = 0;
+      tx_data = 0x0;
       tx_state ++;
     }
   } else if (tx_state >= 1 && tx_state <= 8) { // data

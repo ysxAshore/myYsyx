@@ -3,7 +3,7 @@
 #include <stdarg.h>
 #include <macro.h>
 
-#define FPS 60
+#define FPS 500
 
 static SDL_Window *main_window = nullptr;
 static SDL_Renderer *main_renderer = nullptr;
