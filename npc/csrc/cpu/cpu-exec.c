@@ -134,7 +134,6 @@ static void exec_once()
     {
         nvboard_update();
         ++sim_time;
-        paddr_t cur_pc = dut.pc;
         if (sim_time % (clk_period / 2) == 0)
         {
             dut.clock = !dut.clock;
